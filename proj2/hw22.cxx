@@ -47,6 +47,14 @@ void LoadGLTextures(int k)
     // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
     glTexImage2D(GL_TEXTURE_2D, 0, 3, image[0]->width(), image[0]->height(),
             0, GL_RGB, GL_UNSIGNED_BYTE, image[0]);
+            
+    glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping ( NEW )
+    glShadeModel(GL_SMOOTH);                        // Enable Smooth Shading
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);                   // Black Background
+    glClearDepth(1.0f);                         // Depth Buffer Setup
+    glEnable(GL_DEPTH_TEST);                        // Enables Depth Testing
+    glDepthFunc(GL_LEQUAL);                         // The Type Of Depth Testing To Do
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective Calculations
 	
 }
 
