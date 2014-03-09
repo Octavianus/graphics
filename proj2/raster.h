@@ -15,11 +15,10 @@
 template<class T>
 class Raster
 {
-private:
+public:
     T *data;
     int W, H, nchan;
 
-public:
     Raster(int w, int h, int c)
     {
 	W=w; H=h; nchan=c;

@@ -32,21 +32,21 @@ static ByteRaster *image[6];
 GLuint texture[6];
 
 //rotation parameters
-float rot_z_vel = 20.0, rot_y_vel = 0.0;
+float rot_z_vel = 20.0, rot_y_vel = 20.0;
 
 void LoadGLTextures(int k)
 {
     // 创建纹理
-    glGenTextures(1, &texture[0]);
-    glBindTexture(GL_TEXTURE_2D, texture[0]); // 绑定2D纹理
+    glGenTextures(k+1, &texture[k]);
+    glBindTexture(GL_TEXTURE_2D, texture[k]); // 绑定2D纹理
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
     // 2d texture, level of detail 0 (normal), 3 components (red, green, blue), x size from image,
     // y size from image, 
     // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
-    glTexImage2D(GL_TEXTURE_2D, 0, 3, image[0]->width(), image[0]->height(),
-            0, GL_RGB, GL_UNSIGNED_BYTE, image[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, image[k]->width(), image[k]->height(),
+            0, GL_RGB, GL_UNSIGNED_BYTE, image[k]->data);
             
     glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping ( NEW )
     glShadeModel(GL_SMOOTH);                        // Enable Smooth Shading
@@ -60,7 +60,7 @@ void LoadGLTextures(int k)
 
 // draw an empty cube with identical color.
 void DrawCube(float size) {
-
+    LoadGLTextures(0);
     glBegin(GL_QUADS);
  	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
@@ -68,6 +68,7 @@ void DrawCube(float size) {
 	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
     glEnd();
 
+    LoadGLTextures(1);
     glBegin(GL_QUADS);
     	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
@@ -75,6 +76,7 @@ void DrawCube(float size) {
 	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
     glEnd();
 
+    LoadGLTextures(2);
     glBegin(GL_QUADS);
     	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
 	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
@@ -82,6 +84,7 @@ void DrawCube(float size) {
 	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
     glEnd();
 
+    LoadGLTextures(3);
     glBegin(GL_QUADS);
     	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
@@ -89,6 +92,7 @@ void DrawCube(float size) {
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
     glEnd();
 
+    LoadGLTextures(4);
     glBegin(GL_QUADS);
     	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
@@ -96,6 +100,7 @@ void DrawCube(float size) {
 	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
     glEnd();  
   
+    LoadGLTextures(5);
     glBegin(GL_QUADS);
     	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
@@ -231,7 +236,6 @@ int main(int argc, char *argv[]){
     win = glutCreateWindow("HW2"); 
     /* set background clear color to black */
     glClearColor((GLclampf)0.0,(GLclampf)0.0,(GLclampf)0.0,(GLclampf)0.0);  
-	
     // init the rotation matrix 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
