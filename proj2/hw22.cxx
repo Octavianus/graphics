@@ -39,17 +39,14 @@ void LoadGLTextures(int k)
     // 创建纹理
     glGenTextures(1, &texture[0]);
     glBindTexture(GL_TEXTURE_2D, texture[0]); // 绑定2D纹理
-    // 当图片大于当前纹理时线性缩放
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // 当图片小于当前纹理时线性缩放
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
     // 2d texture, level of detail 0 (normal), 3 components (red, green, blue), x size from image,
     // y size from image, 
     // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
-    // 具体想了解，就要在网上
-    glTexImage2D(GL_TEXTURE_2D, 0, 3, image1->width(), image1->height(),
-            0, GL_RGB, GL_UNSIGNED_BYTE, image[0]->data);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, image[0]->width(), image[0]->height(),
+            0, GL_RGB, GL_UNSIGNED_BYTE, image[0]);
 	
 }
 
