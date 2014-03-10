@@ -5,51 +5,30 @@
 #include<math.h>
 #include<time.h>
 #include<sys/time.h>
-#include<X11/Xlib.h>
-#include<X11/XKBlib.h>
-#include<GL/glx.h>
-#include<GL/glext.h>
 #include <GL/glu.h>       
 #include <GL/glut.h>  
 #include<setjmp.h>
 
 #include"raster.h"
-//////////////////////////////////////////////////////////////////////////////////
-//                              GLOBAL IDENTIFIERS                              //
-//////////////////////////////////////////////////////////////////////////////////
-Display                 *dpy;
-Window                  root, win;
-XVisualInfo             *vi;
-GLXContext              glc;
-Colormap                cmap;
-XSetWindowAttributes    swa;
-XWindowAttributes       wa;
-XEvent                  xev;
-GLint                   att[]   = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
-
-float                   TimeCounter, LastFrameTimeCounter, DT, prevTime = 0.0, FPS;
-struct timeval          tv, tv0;
-int                     Frame = 1, FramesPerFPS;
-
-GLfloat                 rotation_matrix[16];
+#include"glmode.h"
 
 /* default window size on our display device, in pixels */
-static int width  = 500;
-static int height = 500;
+static int width  = 1000;
+static int height = 1000;
 
+// read in jpg file and texture file
 static char *infile[6];
 static ByteRaster *image[6];
 GLuint texture[6];
 
-//rotation parameters
+//rotation parameters, angle
 float rot_z_vel = 20.0, rot_y_vel = 0.0;
-// light position
 
 void LoadGLTextures(int k)
 {
-    // 创建纹理
+    // Create texture 
     glGenTextures(k+1, &texture[k]);
-    glBindTexture(GL_TEXTURE_2D, texture[k]); // 绑定2D纹理
+    glBindTexture(GL_TEXTURE_2D, texture[k]); // binding the 2D texture
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
@@ -59,22 +38,21 @@ void LoadGLTextures(int k)
     glTexImage2D(GL_TEXTURE_2D, 0, 3, image[k]->width(), image[k]->height(),
             0, GL_RGB, GL_UNSIGNED_BYTE, image[k]->data);
             
-    glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping ( NEW )
+    glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping
     glShadeModel(GL_SMOOTH);                        // Enable Smooth Shading
     glClearColor(0.0f, 0.0f, 0.0f, 0.5f);                   // Black Background
     glClearDepth(1.0f);                         // Depth Buffer Setup
     glEnable(GL_DEPTH_TEST);                        // Enables Depth Testing
     glDepthFunc(GL_LEQUAL);                         // The Type Of Depth Testing To Do
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective Calculations
-	
 }
 
-void DrawCube(float size) {
+void Draw() {
     // Top Face of the cube
-	// Load the Texture of this face
-	LoadGLTextures(0);
+    // Load the Texture of this face
+    LoadGLTextures(0);
     glBegin(GL_QUADS);
-	// set the normal of this face
+	  // set the normal of this face
 	  glNormal3d(0, 0, 1);
  	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
@@ -82,232 +60,157 @@ void DrawCube(float size) {
 	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
     glEnd();
     // Bottom Face of the cube
-	// Load the Texture of this face
+    // Load the Texture of this face
     LoadGLTextures(1);
     glBegin(GL_QUADS);
-	// set the normal of this face
+	  // set the normal of this face
 	  glNormal3d(0, 0, -1);
-      glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+          glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
    	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
 	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
     glEnd();
-	// Front Face of the cube
-	// Load the Texture of this face
+    // Front Face of the cube
+    // Load the Texture of this face
     LoadGLTextures(2);
     glBegin(GL_QUADS);
 	// set the normal of this face
-      glNormal3d(0, 1, 0);
+          glNormal3d(0, 1, 0);
 	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
 	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
    	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
 	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
     glEnd();
-	// Back Face of the cube
-	// Load the Texture of this face
+    // Back Face of the cube
+    // Load the Texture of this face
     LoadGLTextures(3);
     glBegin(GL_QUADS);
-	// set the normal of this face
-      glNormal3d(0, -1, 0);
+     	  // set the normal of this face
+ 	  glNormal3d(0, -1, 0);
   	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
    	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
     glEnd();
-	// Right Face of the cube
-	// Load the Texture of this face
+    // Right Face of the cube
+    // Load the Texture of this face
     LoadGLTextures(4);
     glBegin(GL_QUADS);
-	// set the normal of this face
-      glNormal3d(1, 0, 0);
+  	  // set the normal of this face
+          glNormal3d(1, 0, 0);
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
    	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
 	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
     glEnd();  
-	// Left Face of the cube
-	// Load the Texture of this face
+    // Left Face of the cube
+    // Load the Texture of this face
     LoadGLTextures(5);
     glBegin(GL_QUADS);
-	// set the normal of this face
+    	  // set the normal of this face
 	  glNormal3d(-1, 0, 0);
-      glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+          glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
    	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
 	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);  
     glEnd();
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              ROTATE THE CUBE                                 //
-//////////////////////////////////////////////////////////////////////////////////
-void RotateCube() {
- glMatrixMode(GL_MODELVIEW);
- glLoadIdentity();
- glRotatef(rot_y_vel*DT, 0.0, 1.0, 0.0);
- glRotatef(rot_z_vel*DT, 0.0, 0.0, 1.0);
- glMultMatrixf(rotation_matrix);
- glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
+
+// this function will rotate the cude by using glRotatef with the given axis-wise and angle.
+void Rotate() {
+	 glMatrixMode(GL_MODELVIEW);
+	 glLoadIdentity();
+	 glRotatef(rot_y_vel*DT, 0.0, 1.0, 0.0);
+	 glRotatef(rot_z_vel*DT, 0.0, 0.0, 1.0);
+	 glMultMatrixf(rotation_matrix);
+	 glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              EXPOSURE FUNCTION                               //
-//////////////////////////////////////////////////////////////////////////////////
-void ExposeFunc() {
- float  aspect_ratio;
- char   info_string[256];
- /////////////////////////////////
- //     RESIZE VIEWPORT         //
- /////////////////////////////////
- XGetWindowAttributes(dpy, win, &wa);
- glViewport(0, 0, wa.width, wa.height);
- aspect_ratio = (float)(wa.width) / (float)(wa.height);
- /////////////////////////////////////////
- //     SETUP PROJECTION & MODELVIEW        //
- /////////////////////////////////////////
- glMatrixMode(GL_PROJECTION);
- glLoadIdentity();
- glOrtho(-2.50*aspect_ratio, 2.50*aspect_ratio, -2.50, 2.50, 1., 100.);
 
- glMatrixMode(GL_MODELVIEW);
- glLoadIdentity();
- gluLookAt(10., 0., 0., 0., 0., 0., 0., 0., 1.);
- glMultMatrixf(rotation_matrix);
- /////////////////////////////////
- //     DRAW CUBE               //
- /////////////////////////////////
- glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
- DrawCube(1.0);
- /////////////////////////////////
- //     DISPLAY TIME, FPS etc.  //
- /////////////////////////////////
- glMatrixMode(GL_PROJECTION);
- glLoadIdentity();
- glOrtho(0, (float)wa.width, 0, (float)wa.height, -1., 1.);
+void Configurate() {
+	 float  aspect_ratio;
+	 
+	 // resize view point
+	 XGetWindowAttributes(dpy, win, &wa);
+	 glViewport(0, 0, wa.width, wa.height);
+	 aspect_ratio = (float)(wa.width) / (float)(wa.height);
 
- glMatrixMode(GL_MODELVIEW);
- glLoadIdentity();
+	 // set the projection view and other setting
+	 glMatrixMode(GL_PROJECTION);
+	 glLoadIdentity();
+	 glOrtho(-2.50*aspect_ratio, 2.50*aspect_ratio, -2.50, 2.50, 1., 100.);
 
- glColor3f(1.0, 1.0, 1.0);
-
- sprintf(info_string, "%4.1f seconds * %4.1f fps at %i x %i", TimeCounter, FPS, wa.width, wa.height, rot_z_vel);
- glRasterPos2i(10, 10);
- glCallLists(strlen(info_string), GL_UNSIGNED_BYTE, info_string);
-
- sprintf(info_string, "<up,down,left,right> rotate cube * <F1> stop rotation ");
- glRasterPos2i(10, wa.height-32);
- glCallLists(strlen(info_string), GL_UNSIGNED_BYTE, info_string);
- /////////////////////////////////
- //     SWAP BUFFERS            //
- /////////////////////////////////
- glXSwapBuffers(dpy, win);
+	 // set the lookAt point
+	 glMatrixMode(GL_MODELVIEW);
+	 glLoadIdentity();
+	 gluLookAt(10., 0., 0., 0., 0., 0., 0., 0., 1.);
+	 glMultMatrixf(rotation_matrix);
+	 // Call Draw to draw the cube each time.
+	 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	 Draw();
+	 // swap the buffer by calling glX lib
+	 glXSwapBuffers(dpy, win);
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              CREATE A GL CAPABLE WINDOW                      //
-//////////////////////////////////////////////////////////////////////////////////
+
+// create a windows
 void CreateWindow() {
-
-   if((dpy = XOpenDisplay(NULL)) == NULL) {
-        printf("\n\tcannot connect to x server\n\n");
-        exit(0);
-   }
-
- root = DefaultRootWindow(dpy);
- 
-   if((vi = glXChooseVisual(dpy, 0, att)) == NULL) {
-        printf("\n\tno matching visual\n\n");
-        exit(0);
-   }
+	 // initiate all the window parameters by using glX
+     	 dpy = XOpenDisplay(NULL);
+     	 root = DefaultRootWindow(dpy);
+     	 vi = glXChooseVisual(dpy, 0, att);
+     	 cmap = XCreateColormap(dpy, root, vi->visual, AllocNone);
         
-   if((cmap = XCreateColormap(dpy, root, vi->visual, AllocNone)) == 0) {
-        printf("\n\tcannot create colormap\n\n");
-        exit(0);
-   }
-        
- swa.event_mask = KeyPressMask;
- swa.colormap   = cmap;
- win = XCreateWindow(dpy, root, 0, 0, 1000, 1000, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
- XStoreName(dpy, win, "OpenGL Animation");
- XMapWindow(dpy, win);
+	 swa.event_mask = KeyPressMask;
+	 swa.colormap   = cmap;
+	 win = XCreateWindow(dpy, root, 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
+	 XStoreName(dpy, win, "HW2");
+	 XMapWindow(dpy, win);
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              SETUP GL CONTEXT                                //
-//////////////////////////////////////////////////////////////////////////////////
-void SetupGL() {
- char           font_string[128];
- XFontStruct    *font_struct;
- /////////////////////////////////////////////////
- //     CREATE GL CONTEXT AND MAKE IT CURRENT   //
- /////////////////////////////////////////////////
-   if((glc = glXCreateContext(dpy, vi, NULL, GL_TRUE)) == NULL) {
-        printf("\n\tcannot create gl context\n\n");
-        exit(0);
-   }
 
- glXMakeCurrent(dpy, win, glc);
- glEnable(GL_DEPTH_TEST);
- glClearColor(0.00, 0.00, 0.40, 1.00);
-    /////////////////////////////////////////////////
-    //     FIND A FONT                             //
-    /////////////////////////////////////////////////
-    for(int font_size = 14; font_size < 32; font_size += 2) {
-        sprintf(font_string, "-adobe-courier-*-r-normal--%i-*", font_size);
-        font_struct = XLoadQueryFont(dpy, font_string);
-        
-        if(font_struct != NULL) {
-                glXUseXFont(font_struct->fid, 32, 192, 32);          
-                break;
-        }
-    }
- /////////////////////////////////////////////////
- //     INITIALIZE ROTATION MATRIX              //
- /////////////////////////////////////////////////
- glEnable(GL_LIGHTING);
- glEnable(GL_LIGHT0);
- GLfloat lightpos[] = {0.0, 0.0, 1.0, 0.};
- glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
- glMatrixMode(GL_MODELVIEW);
- glLoadIdentity();
- glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
+void InitGL() {
+	 gettimeofday(&tv0, NULL);
+	 // create the GL context and give to the current context parameters.
+	 glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
+	 glXMakeCurrent(dpy, win, glc);
+	 glEnable(GL_DEPTH_TEST);
+	 glClearColor(0.00, 0.00, 0.40, 1.00);
+	 
+	 // Enable the lighting feature, and set a new point light source.
+	 glEnable(GL_LIGHTING);
+	 glEnable(GL_LIGHT0);
+	 GLfloat lightpos[] = {0.0, 0.0, 1.0, 0.};
+	 glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
+	 
+	 // set up the rotation matrix
+	 glMatrixMode(GL_MODELVIEW);
+	 glLoadIdentity();
+	 glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              TIME COUNTER FUNCTIONS                          //
-//////////////////////////////////////////////////////////////////////////////////
-void InitTimeCounter() {
- gettimeofday(&tv0, NULL);
- FramesPerFPS = 30; }
 
+// get the time inteval from last rotation.
 void UpdateTimeCounter() {
- LastFrameTimeCounter = TimeCounter;
- gettimeofday(&tv, NULL);
- TimeCounter = (float)(tv.tv_sec-tv0.tv_sec) + 0.000001*((float)(tv.tv_usec-tv0.tv_usec));
- DT = TimeCounter - LastFrameTimeCounter;
+ 	LastFrameTimeCounter = TimeCounter;
+ 	gettimeofday(&tv, NULL);
+	TimeCounter = (float)(tv.tv_sec-tv0.tv_sec) + 0.000001*((float)(tv.tv_usec-tv0.tv_usec));
+ 	// DT will decide what angle should be now.
+	DT = TimeCounter - LastFrameTimeCounter;
 }
 
-void CalculateFPS() {
- Frame ++;
-
-   if((Frame%FramesPerFPS) == 0) {
-        FPS = ((float)(FramesPerFPS)) / (TimeCounter-prevTime);
-        prevTime = TimeCounter;
-   }
+// exit the grogram safely
+void Exit() {
+	glXMakeCurrent(dpy, None, NULL);
+	glXDestroyContext(dpy, glc);
+	XDestroyWindow(dpy, win);
+	XCloseDisplay(dpy);
+	exit(0);
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              EXIT PROGRAM                                    //
-//////////////////////////////////////////////////////////////////////////////////
-void ExitProgram() {
- glXMakeCurrent(dpy, None, NULL);
- glXDestroyContext(dpy, glc);
- XDestroyWindow(dpy, win);
- XCloseDisplay(dpy);
- exit(0);
-}
-//////////////////////////////////////////////////////////////////////////////////
-//                              CHECK EVENTS                                    //
-//////////////////////////////////////////////////////////////////////////////////
-void CheckKeyboard() {
 
+// check for the keyboard event.
+void Key_CB() {
+    // detect the key board input
     if(XCheckWindowEvent(dpy, win, KeyPressMask, &xev)) {
         char    *key_string = XKeysymToString(XkbKeycodeToKeysym(dpy, xev.xkey.keycode, 0, 0));
-
+		// change the direction it rotate.
+		/*
         if(strncmp(key_string, "Left", 4) == 0) {
                 rot_z_vel -= 200.0*DT;
         }
@@ -323,18 +226,24 @@ void CheckKeyboard() {
         else if(strncmp(key_string, "Down", 4) == 0) {
                 rot_y_vel += 200.0*DT;
         }
-
-        else if(strncmp(key_string, "F1", 2) == 0) {
+		*/
+        if(strncmp(key_string, "F1", 2) == 0) {
                 rot_y_vel = 0.0; 
                 rot_z_vel = 0.0;
         }
 
         else if(strncmp(key_string, "Escape", 5) == 0) {
-                ExitProgram();
+                Exit();
         }
+		
+		else if(strncmp(key_string, "b", 1) == 0)
+		{
+			// transform the draw mode
+		}
     }
 }
 
+// Read om all the jpg file to image array
 void ReadInFile(int face){
 	infile[0] = "1.jpg";
 	infile[1] = "2.jpg";
@@ -346,21 +255,17 @@ void ReadInFile(int face){
 	for(i = 0; i < face; i++)
 		image[i] = read_jpeg_image(infile[i]);
 }
-//////////////////////////////////////////////////////////////////////////////////
-//                              MAIN PROGRAM                                    //
-//////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char *argv[]){
- ReadInFile(6);
- CreateWindow();
- SetupGL();
- InitTimeCounter();
 
-    while(true) {
-        UpdateTimeCounter();
-        CalculateFPS();
-        RotateCube();
-        ExposeFunc(); 
-        usleep(1000);
-        CheckKeyboard();
-    }
+int main(int argc, char *argv[]){
+	 ReadInFile(6);
+	 CreateWindow();
+	 InitGL();
+
+     while(true) {
+         UpdateTimeCounter();
+         Rotate();
+         Configurate(); 
+         usleep(1000);
+         Key_CB();
+     }
 }
