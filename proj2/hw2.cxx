@@ -9,72 +9,133 @@
 #include<X11/XKBlib.h>
 #include<GL/glx.h>
 #include<GL/glext.h>
-#include<GL/glu.h>
+#include <GL/glu.h>       
+#include <GL/glut.h>  
+#include<setjmp.h>
+
+#include"raster.h"
 //////////////////////////////////////////////////////////////////////////////////
 //                              GLOBAL IDENTIFIERS                              //
 //////////////////////////////////////////////////////////////////////////////////
 Display                 *dpy;
 Window                  root, win;
-GLint                   att[]   = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 XVisualInfo             *vi;
 GLXContext              glc;
 Colormap                cmap;
 XSetWindowAttributes    swa;
 XWindowAttributes       wa;
 XEvent                  xev;
+GLint                   att[]   = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
 float                   TimeCounter, LastFrameTimeCounter, DT, prevTime = 0.0, FPS;
 struct timeval          tv, tv0;
 int                     Frame = 1, FramesPerFPS;
 
 GLfloat                 rotation_matrix[16];
-float                   rot_z_vel = 50.0, rot_y_vel = 0;
-//////////////////////////////////////////////////////////////////////////////////
-//                              DRAW A CUBE                                     //
-//////////////////////////////////////////////////////////////////////////////////
+
+/* default window size on our display device, in pixels */
+static int width  = 500;
+static int height = 500;
+
+static char *infile[6];
+static ByteRaster *image[6];
+GLuint texture[6];
+
+//rotation parameters
+float rot_z_vel = 20.0, rot_y_vel = 0.0;
+// light position
+
+void LoadGLTextures(int k)
+{
+    // 创建纹理
+    glGenTextures(k+1, &texture[k]);
+    glBindTexture(GL_TEXTURE_2D, texture[k]); // 绑定2D纹理
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    // 2d texture, level of detail 0 (normal), 3 components (red, green, blue), x size from image,
+    // y size from image, 
+    // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, image[k]->width(), image[k]->height(),
+            0, GL_RGB, GL_UNSIGNED_BYTE, image[k]->data);
+            
+    glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping ( NEW )
+    glShadeModel(GL_SMOOTH);                        // Enable Smooth Shading
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);                   // Black Background
+    glClearDepth(1.0f);                         // Depth Buffer Setup
+    glEnable(GL_DEPTH_TEST);                        // Enables Depth Testing
+    glDepthFunc(GL_LEQUAL);                         // The Type Of Depth Testing To Do
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective Calculations
+	
+}
+
 void DrawCube(float size) {
-
- glBegin(GL_QUADS);
-
-  glColor3f(0.7, 0.0, 0.0);
-  glVertex3f(-size, -size, -size);
-  glVertex3f( size, -size, -size);
-  glVertex3f( size,  size, -size);
-  glVertex3f(-size,  size, -size);
-
-  glColor3f(0.7, 0.0, 0.0);
-  glVertex3f(-size, -size,  size);
-  glVertex3f( size, -size,  size);
-  glVertex3f( size,  size,  size);
-  glVertex3f(-size,  size,  size);
-
-
-  glColor3f(0.0, 0.0, 0.7);
-  glVertex3f(-size, -size, -size);
-  glVertex3f(-size, -size,  size);
-  glVertex3f(-size,  size,  size);
-  glVertex3f(-size,  size, -size);
-
-  glColor3f(0.0, 0.0, 0.7);
-  glVertex3f( size, -size, -size);
-  glVertex3f( size, -size,  size);
-  glVertex3f( size,  size,  size);
-  glVertex3f( size,  size, -size);
-
-
-  glColor3f(0.0, 0.7, 0.0);
-  glVertex3f(-size, -size, -size);
-  glVertex3f(-size, -size,  size);
-  glVertex3f( size, -size,  size);
-  glVertex3f( size, -size, -size);
-
-  glColor3f(0.0, 0.7, 0.0);
-  glVertex3f(-size, size, -size);
-  glVertex3f(-size, size,  size);
-  glVertex3f( size, size,  size);
-  glVertex3f( size, size, -size);
-
- glEnd();
+    // Top Face of the cube
+	// Load the Texture of this face
+	LoadGLTextures(0);
+    glBegin(GL_QUADS);
+	// set the normal of this face
+	  glNormal3d(0, 0, 1);
+ 	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
+	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
+   	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
+	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
+    glEnd();
+    // Bottom Face of the cube
+	// Load the Texture of this face
+    LoadGLTextures(1);
+    glBegin(GL_QUADS);
+	// set the normal of this face
+	  glNormal3d(0, 0, -1);
+      glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
+   	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
+	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
+    glEnd();
+	// Front Face of the cube
+	// Load the Texture of this face
+    LoadGLTextures(2);
+    glBegin(GL_QUADS);
+	// set the normal of this face
+      glNormal3d(0, 1, 0);
+	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
+	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
+   	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
+	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
+    glEnd();
+	// Back Face of the cube
+	// Load the Texture of this face
+    LoadGLTextures(3);
+    glBegin(GL_QUADS);
+	// set the normal of this face
+      glNormal3d(0, -1, 0);
+  	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
+   	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
+	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
+    glEnd();
+	// Right Face of the cube
+	// Load the Texture of this face
+    LoadGLTextures(4);
+    glBegin(GL_QUADS);
+	// set the normal of this face
+      glNormal3d(1, 0, 0);
+	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
+	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
+   	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
+	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
+    glEnd();  
+	// Left Face of the cube
+	// Load the Texture of this face
+    LoadGLTextures(5);
+    glBegin(GL_QUADS);
+	// set the normal of this face
+	  glNormal3d(-1, 0, 0);
+      glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
+   	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
+	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);  
+    glEnd();
 }
 //////////////////////////////////////////////////////////////////////////////////
 //                              ROTATE THE CUBE                                 //
@@ -163,7 +224,7 @@ void CreateWindow() {
         
  swa.event_mask = KeyPressMask;
  swa.colormap   = cmap;
- win = XCreateWindow(dpy, root, 0, 0, 700, 700, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
+ win = XCreateWindow(dpy, root, 0, 0, 1000, 1000, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
  XStoreName(dpy, win, "OpenGL Animation");
  XMapWindow(dpy, win);
 }
@@ -199,6 +260,10 @@ void SetupGL() {
  /////////////////////////////////////////////////
  //     INITIALIZE ROTATION MATRIX              //
  /////////////////////////////////////////////////
+ glEnable(GL_LIGHTING);
+ glEnable(GL_LIGHT0);
+ GLfloat lightpos[] = {0.0, 0.0, 1.0, 0.};
+ glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
  glMatrixMode(GL_MODELVIEW);
  glLoadIdentity();
  glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
@@ -269,11 +334,23 @@ void CheckKeyboard() {
         }
     }
 }
+
+void ReadInFile(int face){
+	infile[0] = "1.jpg";
+	infile[1] = "2.jpg";
+	infile[2] = "3.jpg";
+	infile[3] = "4.jpg";
+	infile[4] = "6.jpg";
+	infile[5] = "5.jpg";
+	int i;
+	for(i = 0; i < face; i++)
+		image[i] = read_jpeg_image(infile[i]);
+}
 //////////////////////////////////////////////////////////////////////////////////
 //                              MAIN PROGRAM                                    //
 //////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]){
-
+ ReadInFile(6);
  CreateWindow();
  SetupGL();
  InitTimeCounter();

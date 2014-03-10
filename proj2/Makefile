@@ -4,10 +4,10 @@ CC      = g++
 # libraries we're linking against
 LIBALIASES = -lGL -lGLU -lglut -lm -ljpeg
 
-APPNAME = hw22
+APPNAME = hw2
 
 APPCODE = \
-hw22.cxx \
+hw2.cxx \
 raster.cxx \
 raster-jpeg.cxx 
 
