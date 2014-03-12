@@ -5,16 +5,16 @@
 #include<math.h>
 #include<time.h>
 #include<sys/time.h>
-#include <GL/glu.h>       
-#include <GL/glut.h>  
+#include<GL/glu.h>       
+#include<GL/glut.h>  
 #include<setjmp.h>
 
 #include"raster.h"
 #include"glmode.h"
 
 /* default window size on our display device, in pixels */
-static int width  = 1000;
-static int height = 1000;
+static int width  = 600;
+static int height = 600;
 
 // read in jpg file and texture file
 static char *infile[6];
@@ -22,7 +22,8 @@ static ByteRaster *image[6];
 GLuint texture[6];
 
 //rotation parameters, angle
-float rot_z_vel = 20.0, rot_y_vel = 0.0;
+float rot_z_vel = 0.0, rot_y_vel = -20.0;
+float sizeofCube = 1.0f;
 
 void LoadGLTextures(int k)
 {
@@ -47,17 +48,17 @@ void LoadGLTextures(int k)
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective Calculations
 }
 
-void Draw() {
+void Draw(float sizeofCube) {
     // Top Face of the cube
     // Load the Texture of this face
     LoadGLTextures(0);
     glBegin(GL_QUADS);
 	  // set the normal of this face
 	  glNormal3d(0, 0, 1);
- 	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
-	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
-   	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
-	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  
+ 	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-sizeofCube, -sizeofCube,  sizeofCube);
+	  glTexCoord2f(sizeofCube, 0.0f); glVertex3f( sizeofCube, -sizeofCube,  sizeofCube);
+   	  glTexCoord2f(sizeofCube, sizeofCube); glVertex3f( sizeofCube,  sizeofCube,  sizeofCube);
+	  glTexCoord2f(0.0f, sizeofCube); glVertex3f(-sizeofCube,  sizeofCube,  sizeofCube);  
     glEnd();
     // Bottom Face of the cube
     // Load the Texture of this face
@@ -65,10 +66,10 @@ void Draw() {
     glBegin(GL_QUADS);
 	  // set the normal of this face
 	  glNormal3d(0, 0, -1);
-          glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
-   	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
-	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);  
+          glTexCoord2f(sizeofCube, 0.0f); glVertex3f(-sizeofCube, -sizeofCube, -sizeofCube);
+	  glTexCoord2f(sizeofCube, sizeofCube); glVertex3f(-sizeofCube,  sizeofCube, -sizeofCube);
+   	  glTexCoord2f(0.0f, sizeofCube); glVertex3f( sizeofCube,  sizeofCube, -sizeofCube);
+	  glTexCoord2f(0.0f, 0.0f); glVertex3f( sizeofCube, -sizeofCube, -sizeofCube);  
     glEnd();
     // Front Face of the cube
     // Load the Texture of this face
@@ -76,10 +77,10 @@ void Draw() {
     glBegin(GL_QUADS);
 	// set the normal of this face
           glNormal3d(0, 1, 0);
-	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);
-	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
-   	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
-	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);  
+	  glTexCoord2f(0.0f, sizeofCube); glVertex3f(-sizeofCube,  sizeofCube, -sizeofCube);
+	  glTexCoord2f(0.0f, 0.0f); glVertex3f(-sizeofCube,  sizeofCube,  sizeofCube);
+   	  glTexCoord2f(sizeofCube, 0.0f); glVertex3f( sizeofCube,  sizeofCube,  sizeofCube);
+	  glTexCoord2f(sizeofCube, sizeofCube); glVertex3f( sizeofCube,  sizeofCube, -sizeofCube);  
     glEnd();
     // Back Face of the cube
     // Load the Texture of this face
@@ -87,10 +88,10 @@ void Draw() {
     glBegin(GL_QUADS);
      	  // set the normal of this face
  	  glNormal3d(0, -1, 0);
-  	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
-   	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);
-	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  
+  	  glTexCoord2f(sizeofCube, sizeofCube); glVertex3f(-sizeofCube, -sizeofCube, -sizeofCube);
+	  glTexCoord2f(0.0f, sizeofCube); glVertex3f( sizeofCube, -sizeofCube, -sizeofCube);
+   	  glTexCoord2f(0.0f, 0.0f); glVertex3f( sizeofCube, -sizeofCube,  sizeofCube);
+	  glTexCoord2f(sizeofCube, 0.0f); glVertex3f(-sizeofCube, -sizeofCube,  sizeofCube);  
     glEnd();
     // Right Face of the cube
     // Load the Texture of this face
@@ -98,10 +99,10 @@ void Draw() {
     glBegin(GL_QUADS);
   	  // set the normal of this face
           glNormal3d(1, 0, 0);
-	  glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);
-	  glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);
-   	  glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);
-	  glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  
+	  glTexCoord2f(sizeofCube, 0.0f); glVertex3f( sizeofCube, -sizeofCube, -sizeofCube);
+	  glTexCoord2f(sizeofCube, sizeofCube); glVertex3f( sizeofCube,  sizeofCube, -sizeofCube);
+   	  glTexCoord2f(0.0f, sizeofCube); glVertex3f( sizeofCube,  sizeofCube,  sizeofCube);
+	  glTexCoord2f(0.0f, 0.0f); glVertex3f( sizeofCube, -sizeofCube,  sizeofCube);  
     glEnd();  
     // Left Face of the cube
     // Load the Texture of this face
@@ -109,10 +110,10 @@ void Draw() {
     glBegin(GL_QUADS);
     	  // set the normal of this face
 	  glNormal3d(-1, 0, 0);
-          glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-	  glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);
-   	  glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);
-	  glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);  
+          glTexCoord2f(0.0f, 0.0f); glVertex3f(-sizeofCube, -sizeofCube, -sizeofCube);
+	  glTexCoord2f(sizeofCube, 0.0f); glVertex3f(-sizeofCube, -sizeofCube,  sizeofCube);
+   	  glTexCoord2f(sizeofCube, sizeofCube); glVertex3f(-sizeofCube,  sizeofCube,  sizeofCube);
+	  glTexCoord2f(0.0f, sizeofCube); glVertex3f(-sizeofCube,  sizeofCube, -sizeofCube);  
     glEnd();
 }
 
@@ -120,7 +121,7 @@ void Draw() {
 void Rotate() {
 	 glMatrixMode(GL_MODELVIEW);
 	 glLoadIdentity();
-	 glRotatef(rot_y_vel*DT, 0.0, 1.0, 0.0);
+	 glRotatef(rot_y_vel*DT, -1.0, -1.0, -1.0);
 	 glRotatef(rot_z_vel*DT, 0.0, 0.0, 1.0);
 	 glMultMatrixf(rotation_matrix);
 	 glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
@@ -142,11 +143,11 @@ void Configurate() {
 	 // set the lookAt point
 	 glMatrixMode(GL_MODELVIEW);
 	 glLoadIdentity();
-	 gluLookAt(10., 0., 0., 0., 0., 0., 0., 0., 1.);
+	 gluLookAt(20., 0., 0., 0., 0., 0., 0., 0., 1.);
 	 glMultMatrixf(rotation_matrix);
 	 // Call Draw to draw the cube each time.
 	 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	 Draw();
+	 Draw(sizeofCube);
 	 // swap the buffer by calling glX lib
 	 glXSwapBuffers(dpy, win);
 }
@@ -186,8 +187,8 @@ void InitGL() {
 	 glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
 }
 
-// get the time inteval from last rotation.
-void UpdateTimeCounter() {
+// get the time inteval from int rotation time tv0.
+void UpdateTimer() {
  	LastFrameTimeCounter = TimeCounter;
  	gettimeofday(&tv, NULL);
 	TimeCounter = (float)(tv.tv_sec-tv0.tv_sec) + 0.000001*((float)(tv.tv_usec-tv0.tv_usec));
@@ -212,19 +213,19 @@ void Key_CB() {
 		// change the direction it rotate.
 		/*
         if(strncmp(key_string, "Left", 4) == 0) {
-                rot_z_vel -= 200.0*DT;
+                rot_z_vel -= 100.0*DT;
         }
 
         else if(strncmp(key_string, "Right", 5) == 0) {
-                rot_z_vel += 200.0*DT;
+                rot_z_vel += 100.0*DT;
         }
 
         else if(strncmp(key_string, "Up", 2) == 0) {
-                rot_y_vel -= 200.0*DT;
+                rot_y_vel -= 100.0*DT;
         }
 
         else if(strncmp(key_string, "Down", 4) == 0) {
-                rot_y_vel += 200.0*DT;
+                rot_y_vel += 100.0*DT;
         }
 		*/
         if(strncmp(key_string, "F1", 2) == 0) {
@@ -243,7 +244,7 @@ void Key_CB() {
     }
 }
 
-// Read om all the jpg file to image array
+// Read in all the jpg file to image array
 void ReadInFile(int face){
 	infile[0] = "1.jpg";
 	infile[1] = "2.jpg";
@@ -260,9 +261,9 @@ int main(int argc, char *argv[]){
 	 ReadInFile(6);
 	 CreateWindow();
 	 InitGL();
-
+	 
      while(true) {
-         UpdateTimeCounter();
+         UpdateTimer();
          Rotate();
          Configurate(); 
          usleep(1000);

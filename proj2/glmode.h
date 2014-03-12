@@ -19,4 +19,5 @@ int                     Frame = 1;
 
 // rotate matrix
 GLfloat                 rotation_matrix[16];
+
 GLint                   att[]   = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
