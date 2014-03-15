@@ -5,15 +5,14 @@
  * are from "Paintdemo" provided by the instructor
  */
 
- /* Requirements and assumptions:
+ /* Assumptions in Basic mode:
  (1) Assuming the size of each plane of the cube is 600 x 600 pixels
  (2) Assuming the center of the Cube is at (0, 0, -600)
  (3) Assuming the view point is at (0, 0, 600)
+ (4) Assuming the display window's z axis value = 0
  (4) The cube first rotate around Y-axis for one circle and then rotate around diagonal axis for one cycle
  (5) the dot light source is at infinite distance 
- (6) Press "B" to rotate in Basic Mode, Press "G" to rotate in GL mode
- (7) Press "Q" to exit
- */
+*/
  
 #include <setjmp.h>
 #include <stdio.h>       
@@ -27,11 +26,14 @@
 /* static variables used in basic mode */
 static void display(void);            // Called whenever redisplay needed 
 static void idle(void);            // Background activity 
+static void key_CB(unsigned char key, int x, int y);
 static int rotateTimes = 0;              // count the number of rotation steps, reset after each cycle 
 static int rotateAxis = 1;               // 1 = Y axis, 2 = diagonal axis
-static int background = 255;           //background color, 0-255, black to white 
+static int background = 150;           //background color, 0-255, black to white 
+static int cubeZ = -900;             // Z axis coordinate of the center of the cube 
+static int imageSize = 600;          // the default image is square and 600x600 pixels
 
-/* default window size on our display device, in pixels */
+/* default display window size in pixels */
 static int width  = 600;
 static int height = 600;
 
@@ -50,7 +52,7 @@ static int imagBuffer5[600][600][3];		// plane is parallel to X-Z plane-top
 static int imagBuffer6[600][600][3];        // plane is parallel to X-Z plane-bottom
 
 /* a buffer for pixels will displayed on the window */
-static int imagBuffer[600][600][3];      
+static int imagBuffer[600][600][3];      // choose the default display window size 600x600
 
 /* original view point */
 static float viewPoint0[] = {0., 0., 600.};
@@ -63,16 +65,26 @@ static float *rotateDi(float X, float Y, float Z, float angle);    // rotate aro
 static void BasicIdle (void);
 static void BasicDisplay(void);
 
+extern void CreateWindow();
+extern void Rotate();
+extern void CreateWindown();
+extern void ReadInFile(int face);
+extern void UpdateTimer();
+extern void InitGL();
+extern void Configurate();
+extern void Key_CB();
+
 /* basic read image files */
-static void basicImageRead()
+void basicImageRead()
 {
 /* Read an RGB byte raster from an image from each plane and store in buffers */
 	
 	image = read_jpeg_image("m01.jpg");
+	imageSize = image->width();
 	int i, j;
-	for (i = 0; i < 600; i++)
+	for (i = 0; i < imageSize; i++)
 	{
-		for (j = 0; j < 600; j++)
+		for (j = 0; j < imageSize; j++)
 		{
 			/* copy each pixel info of the original image to the buffer */
 			imagBuffer1[i][j][0] = image->pixel(i,j)[0]; 
@@ -82,9 +94,9 @@ static void basicImageRead()
 	}
 	
 	image = read_jpeg_image("m02.jpg");
-	for (i = 0; i < 600; i++)
+	for (i = 0; i < imageSize; i++)
 	{
-		for (j = 0; j < 600; j++)
+		for (j = 0; j < imageSize; j++)
 		{
 			/* copy each pixel info of the original image to the buffer */
 			imagBuffer2[i][j][0] = image->pixel(i,j)[0]; 
@@ -94,9 +106,9 @@ static void basicImageRead()
 	}
 	
 	image = read_jpeg_image("m03.jpg");
-	for (i = 0; i < 600; i++)
+	for (i = 0; i < imageSize; i++)
 	{
-		for (j = 0; j < 600; j++)
+		for (j = 0; j < imageSize; j++)
 		{
 			/* copy each pixel info of the original image to the buffer */
 			imagBuffer3[i][j][0] = image->pixel(i,j)[0]; 
@@ -106,9 +118,9 @@ static void basicImageRead()
 	}
 	
 	image = read_jpeg_image("m04.jpg");
-	for (i = 0; i < 600; i++)
+	for (i = 0; i < imageSize; i++)
 	{
-		for (j = 0; j < 600; j++)
+		for (j = 0; j < imageSize; j++)
 		{
 			/* copy each pixel info of the original image to the buffer */
 			imagBuffer4[i][j][0] = image->pixel(i,j)[0]; 
@@ -118,9 +130,9 @@ static void basicImageRead()
 	}
 	
 	image = read_jpeg_image("m05.jpg");
-	for (i = 0; i < 600; i++)
+	for (i = 0; i < imageSize; i++)
 	{
-		for (j = 0; j < 600; j++)
+		for (j = 0; j < imageSize; j++)
 		{
 			/* copy each pixel info of the original image to the buffer */
 			imagBuffer5[i][j][0] = image->pixel(i,j)[0]; 
@@ -130,9 +142,9 @@ static void basicImageRead()
 	}
 	
 	image = read_jpeg_image("m06.jpg");
-	for (i = 0; i < 600; i++)
+	for (i = 0; i < imageSize; i++)
 	{
-		for (j = 0; j < 600; j++)
+		for (j = 0; j < imageSize; j++)
 		{
 			/* copy each pixel info of the original image to the buffer */
 			imagBuffer6[i][j][0] = image->pixel(i,j)[0]; 
@@ -143,11 +155,32 @@ static void basicImageRead()
 		
 }
 
+static void key_CB(unsigned char key, int x, int y) 
+{
+	    switch (key)
+	    {
+		case 'g':
+			ReadInFile(6);
+			CreateWindow();
+                 	InitGL();
+		        while(true) {
+			         UpdateTimer();
+			          Rotate();
+				  Configurate();
+				  Key_CB();								          }
+		break;
+	    
+	    	case 'q':
+	    		exit(0);
+		break;
+	    }
+	    glutPostRedisplay ();
+}
+
 /* basic mode - window display function */
-static void basicWindowDisplay(int *argc, char**argv)
+void basicWindowDisplay(int *argc, char**argv)
 {
 	int win;
-	
 	/* GLUT & GL initialization */
 	/* initialize GLUT system */
     glutInit(argc, argv);    
@@ -156,7 +189,7 @@ static void basicWindowDisplay(int *argc, char**argv)
 
 	/* define and get handle to the window (render) context */
     glutInitWindowSize(width, height); 
-    win = glutCreateWindow("HW2"); 
+    win = glutCreateWindow("HW2-Basic Mode"); 
 
 	/* set window's display callback */
     glutDisplayFunc(BasicDisplay);       
@@ -167,10 +200,10 @@ static void basicWindowDisplay(int *argc, char**argv)
     glClearColor((GLclampf)1.0,(GLclampf)1.0,(GLclampf)1.0,(GLclampf)0.0);  
 
 	/* how object is mapped to window */
-	gluOrtho2D(0, 600, 600, 0); 
+	gluOrtho2D(0, width, height, 0); 
 
 	/* end GLUT & GL initialization */
-	
+	glutKeyboardFunc(key_CB);	
 	/* start processing events...this is the event 'pump' */
     glutMainLoop();                      
 
@@ -219,15 +252,13 @@ float *rotateDi(float X, float Y, float Z, float angle)
 	return newC;
 }
 
-/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
 	basicImageRead();
-	/* window handle */
-    basicWindowDisplay(&argc, argv);
-    /* Execution never reaches this point, so return value is failure */
-   
+	basicWindowDisplay(&argc, argv);
 }
+*/
 
 /* -------------------------------------------------------------------- */
 /* Basic Mode: project 3d cube on to the 2d window based on the view point, drawing pixel by pixel */
@@ -266,10 +297,10 @@ static void BasicProjection(void)
 	if (rotateAxis == 1)
 	{
 		// rotate the view point
-		tempC = rotateY(viewPoint0[0], viewPoint0[1], viewPoint0[2]+600, theta);
+		tempC = rotateY(viewPoint0[0], viewPoint0[1], viewPoint0[2]-cubeZ, theta);
 		viewPoint[0] = *tempC;
 		viewPoint[1] = *(tempC+1);
-		viewPoint[2] = *(tempC+2) - 600;
+		viewPoint[2] = *(tempC+2) + cubeZ;
 		// rotate the light vector
 		tempC = rotateY(lightVector[0], lightVector[1], lightVector[2], theta);
 		lightVector[0] = *tempC;
@@ -286,10 +317,10 @@ static void BasicProjection(void)
 	if (rotateAxis == 2)
 	{
 		// rotate the view point
-		tempC = rotateDi(viewPoint0[0], viewPoint0[1], viewPoint0[2]+600, theta);
+		tempC = rotateDi(viewPoint0[0], viewPoint0[1], viewPoint0[2]-cubeZ, theta);
 		viewPoint[0] = *tempC;
 		viewPoint[1] = *(tempC+1);
-		viewPoint[2] = *(tempC+2) - 600;
+		viewPoint[2] = *(tempC+2) + cubeZ;
 		// rotate the light vector
 		tempC = rotateDi(lightVector[0], lightVector[1], lightVector[2], theta);
 		lightVector[1] = *(tempC+1);
@@ -304,24 +335,24 @@ static void BasicProjection(void)
 		cosTheta[5] = -((lightVector[1]*1)/(sqrt(pow(lightVector[1],2)+pow(lightVector[0],2)+pow(lightVector[2],2))));
 	}
 		
-	for (i = 0; i < 600; i++)       
+	for (i = 0; i < width; i++)       
 	{
-		for (j = 0; j < 600; j++)   
+		for (j = 0; j < height; j++)   
 		{
 			if (rotateAxis == 1)   // rotate window pixel around y-axis
 			{
-				tempC = rotateY(i-300., j-300, 600, theta);
+				tempC = rotateY(i-(width/2), j-(height/2), -cubeZ, theta);
 				window[0] = *tempC;
 				window[1] = *(tempC+1);
-				window[2] = *(tempC+2)-600;
+				window[2] = *(tempC+2) + cubeZ;
 			}
 
 			if (rotateAxis == 2)  // rotate window pixel around diagonal axis
 			{
-				tempC = rotateDi(i-300., j-300., 600., theta);
+				tempC = rotateDi(i-(width/2), j-(height/2), -cubeZ, theta);
 				window[1] = *(tempC+1);
 				window[0] = *tempC;
-				window[2] = *(tempC+2) - 600;
+				window[2] = *(tempC+2) + cubeZ;
 			}			
 			
 			// calculate the viewVector for the observing ray
@@ -333,7 +364,7 @@ static void BasicProjection(void)
 			/* Plane 1*/
 			if (viewVector[2] * 1 < 0)     // plane 1 normal dot product with viewVector
 			{
-				t = -(300+viewPoint[2])/viewVector[2];   // when does the ray hit the plane
+				t = ((imageSize/2)+cubeZ-viewPoint[2])/viewVector[2];   // when does the ray hit the plane
 				if (t >= 0 && t < depth)   // t<0 -> not hit; t<depth -> another plane is in front of the current plane
 				{
 					xNew = viewVector[0] * t + viewPoint[0];
@@ -345,63 +376,63 @@ static void BasicProjection(void)
 					cornerY[1] = (int)yNew + 1;
 					
 					// find the adjacent pixels of the image on plane where the ray hit the plane, otherwise, paint in background color
-					if (((-300 <= cornerX[0] && cornerX[0] < 300) || (-300 <= cornerX[1] && cornerX[1] < 300)) &&
-						((cornerY[0] >= -300 && cornerY[0] < 300) || (cornerY[1] >= -300 && cornerY[1] < 300)))
+					if (((-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2)) || (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2))) &&
+						((cornerY[0] >= -(imageSize/2) && cornerY[0] < (imageSize/2)) || (cornerY[1] >= -(imageSize/2) && cornerY[1] < (imageSize/2))))
 					{
 						depth = t;
 						
 						/* get RGB color info for 4 surrounding pixels
 						/* left top corner */
-						if (-300 <= cornerX[0] && cornerX[0] < 300 && cornerY[0] >= -300 && cornerY[0] < 300)
+						if (-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2) && cornerY[0] >= -(imageSize/2) && cornerY[0] < (imageSize/2))
 						{	
-							cornerColor[0][0] = imagBuffer1[cornerX[0]+300][cornerY[0]+300][0];
-							cornerColor[0][1] = imagBuffer1[cornerX[0]+300][cornerY[0]+300][1];
-							cornerColor[0][2] = imagBuffer1[cornerX[0]+300][cornerY[0]+300][2];
+							cornerColor[0][0] = imagBuffer1[cornerX[0]+(imageSize/2)][cornerY[0]+(imageSize/2)][0];
+							cornerColor[0][1] = imagBuffer1[cornerX[0]+(imageSize/2)][cornerY[0]+(imageSize/2)][1];
+							cornerColor[0][2] = imagBuffer1[cornerX[0]+(imageSize/2)][cornerY[0]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[0][0] = 255;
-							cornerColor[0][1] = 255;
-							cornerColor[0][2] = 255;
+							cornerColor[0][0] = background;
+							cornerColor[0][1] = background;
+							cornerColor[0][2] = background;
 						}
 						/* right top corner */
-						if (-300 <= cornerX[1] && cornerX[1] < 300 && cornerY[0] >= -300 && cornerY[0] < 300)
+						if (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2) && cornerY[0] >= -(imageSize/2) && cornerY[0] < (imageSize/2))
 						{	
-							cornerColor[1][0] = imagBuffer1[cornerX[1]+300][cornerY[0]+300][0];
-							cornerColor[1][1] = imagBuffer1[cornerX[1]+300][cornerY[0]+300][1];
-							cornerColor[1][2] = imagBuffer1[cornerX[1]+300][cornerY[0]+300][2];
+							cornerColor[1][0] = imagBuffer1[cornerX[1]+(imageSize/2)][cornerY[0]+(imageSize/2)][0];
+							cornerColor[1][1] = imagBuffer1[cornerX[1]+(imageSize/2)][cornerY[0]+(imageSize/2)][1];
+							cornerColor[1][2] = imagBuffer1[cornerX[1]+(imageSize/2)][cornerY[0]+(imageSize/2)][2];
 						}	
 						else
 						{
-							cornerColor[1][0] = 255;
-							cornerColor[1][1] = 255;
-							cornerColor[1][2] = 255;
+							cornerColor[1][0] = background;
+							cornerColor[1][1] = background;
+							cornerColor[1][2] = background;
 						}
 						/* right bottom corner */
-						if (-300 <= cornerX[1] && cornerX[1] < 300 && cornerY[1] >= -300 && cornerY[1] < 300)
+						if (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2) && cornerY[1] >= -(imageSize/2) && cornerY[1] < (imageSize/2))
 						{	
-							cornerColor[2][0] = imagBuffer1[cornerX[1]+300][cornerY[1]+300][0];
-							cornerColor[2][1] = imagBuffer1[cornerX[1]+300][cornerY[1]+300][1];
-							cornerColor[2][2] = imagBuffer1[cornerX[1]+300][cornerY[1]+300][2];
+							cornerColor[2][0] = imagBuffer1[cornerX[1]+(imageSize/2)][cornerY[1]+(imageSize/2)][0];
+							cornerColor[2][1] = imagBuffer1[cornerX[1]+(imageSize/2)][cornerY[1]+(imageSize/2)][1];
+							cornerColor[2][2] = imagBuffer1[cornerX[1]+(imageSize/2)][cornerY[1]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[2][0] = 255;
-							cornerColor[2][1] = 255;
-							cornerColor[2][2] = 255;
+							cornerColor[2][0] = background;
+							cornerColor[2][1] = background;
+							cornerColor[2][2] = background;
 						}
 						/* left bottom corner */
-						if (-300 <= cornerX[0] && cornerX[0] < 300 && cornerY[1] >= -300 && cornerY[1] < 300)
+						if (-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2) && cornerY[1] >= -(imageSize/2) && cornerY[1] < (imageSize/2))
 						{	
-							cornerColor[3][0] = imagBuffer1[cornerX[0]+300][cornerY[1]+300][0];
-							cornerColor[3][1] = imagBuffer1[cornerX[0]+300][cornerY[1]+300][1];
-							cornerColor[3][2] = imagBuffer1[cornerX[0]+300][cornerY[1]+300][2];
+							cornerColor[3][0] = imagBuffer1[cornerX[0]+(imageSize/2)][cornerY[1]+(imageSize/2)][0];
+							cornerColor[3][1] = imagBuffer1[cornerX[0]+(imageSize/2)][cornerY[1]+(imageSize/2)][1];
+							cornerColor[3][2] = imagBuffer1[cornerX[0]+(imageSize/2)][cornerY[1]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[3][0] = 255;
-							cornerColor[3][1] = 255;
-							cornerColor[3][2] = 255;
+							cornerColor[3][0] = background;
+							cornerColor[3][1] = background;
+							cornerColor[3][2] = background;
 						}
 						
 						/*color at rotated pixel, Bilinear interpolation using info from 4 surrounding pixels */
@@ -425,7 +456,7 @@ static void BasicProjection(void)
 			/* Plane 2*/
 			if (viewVector[0] * 1 < 0)     // plane 2 normal dot product with viewVector
 			{ 
-				t = (300-viewPoint[0])/viewVector[0];
+				t = ((imageSize/2)-viewPoint[0])/viewVector[0];
 				if (t >= 0 && t < depth) 
 				{
 					yNew = viewVector[1] * t + viewPoint[1];
@@ -435,62 +466,62 @@ static void BasicProjection(void)
 					cornerZ[0] = (int)zNew;
 					cornerZ[1] = (int)zNew + 1;
 					
-					if (((-300 <= cornerY[0] && cornerY[0] < 300) || (-300 <= cornerY[1] && cornerY[1] < 300)) && 
-						((cornerZ[0] > -900 && cornerZ[0] <= -300) || (cornerZ[1] > -900 && cornerZ[1] <= -300)))
+					if (((-(imageSize/2) <= cornerY[0] && cornerY[0] < (imageSize/2)) || (-(imageSize/2) <= cornerY[1] && cornerY[1] < (imageSize/2))) && 
+						((cornerZ[0] > cubeZ-(imageSize/2) && cornerZ[0] <= cubeZ+(imageSize/2)) || (cornerZ[1] > cubeZ-(imageSize/2) && cornerZ[1] <= cubeZ+(imageSize/2))))
 					{	
 						depth = t;            // the new closet plane to the view point for current window pixel
 						/* get RGB color info for 4 surrounding pixels
 						/* left top corner */
-						if (-300 <= cornerY[0] && cornerY[0] < 300 && cornerZ[0] > -900 && cornerZ[0] <= -300)
+						if (-(imageSize/2) <= cornerY[0] && cornerY[0] < (imageSize/2) && cornerZ[0] > cubeZ-(imageSize/2) && cornerZ[0] <= cubeZ+(imageSize/2))
 						{	
-							cornerColor[0][0] = imagBuffer2[-300-cornerZ[0]][cornerY[0]+300][0];
-							cornerColor[0][1] = imagBuffer2[-300-cornerZ[0]][cornerY[0]+300][1];
-							cornerColor[0][2] = imagBuffer2[-300-cornerZ[0]][cornerY[0]+300][2];
+							cornerColor[0][0] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[0]][cornerY[0]+(imageSize/2)][0];
+							cornerColor[0][1] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[0]][cornerY[0]+(imageSize/2)][1];
+							cornerColor[0][2] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[0]][cornerY[0]+(imageSize/2)][2];
 						}
 						else
 						{	
-							cornerColor[0][0] = 255;
-							cornerColor[0][1] = 255;
-							cornerColor[0][2] = 255;
+							cornerColor[0][0] = background;
+							cornerColor[0][1] = background;
+							cornerColor[0][2] = background;
 						}
 						/* right top corner */
-						if (-300 <= cornerY[1] && cornerY[1] < 300 && cornerZ[0] > -900 && cornerZ[0] <= -300)
+						if (-(imageSize/2) <= cornerY[1] && cornerY[1] < (imageSize/2) && cornerZ[0] > cubeZ-(imageSize/2) && cornerZ[0] <= cubeZ+(imageSize/2))
 						{	
-							cornerColor[1][0] = imagBuffer2[-300-cornerZ[0]][cornerY[1]+300][0];
-							cornerColor[1][1] = imagBuffer2[-300-cornerZ[0]][cornerY[1]+300][1];
-							cornerColor[1][2] = imagBuffer2[-300-cornerZ[0]][cornerY[1]+300][2];
+							cornerColor[1][0] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[0]][cornerY[1]+(imageSize/2)][0];
+							cornerColor[1][1] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[0]][cornerY[1]+(imageSize/2)][1];
+							cornerColor[1][2] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[0]][cornerY[1]+(imageSize/2)][2];
 						}	
 						else
 						{
-							cornerColor[1][0] = 255;
-							cornerColor[1][1] = 255;
-							cornerColor[1][2] = 255;
+							cornerColor[1][0] = background;
+							cornerColor[1][1] = background;
+							cornerColor[1][2] = background;
 						}
 						/* right bottom corner */
-						if (-300 <= cornerY[1] && cornerY[1] < 300 && cornerZ[1] > -900 && cornerZ[1] <= -300)
+						if (-(imageSize/2) <= cornerY[1] && cornerY[1] < (imageSize/2) && cornerZ[1] > cubeZ-(imageSize/2) && cornerZ[1] <= cubeZ+(imageSize/2))
 						{	
-							cornerColor[2][0] = imagBuffer2[-300-cornerZ[1]][cornerY[1]+300][0];
-							cornerColor[2][1] = imagBuffer2[-300-cornerZ[1]][cornerY[1]+300][1];
-							cornerColor[2][2] = imagBuffer2[-300-cornerZ[1]][cornerY[1]+300][2];
+							cornerColor[2][0] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[1]][cornerY[1]+(imageSize/2)][0];
+							cornerColor[2][1] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[1]][cornerY[1]+(imageSize/2)][1];
+							cornerColor[2][2] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[1]][cornerY[1]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[2][0] = 255;
-							cornerColor[2][1] = 255;
-							cornerColor[2][2] = 255;
+							cornerColor[2][0] = background;
+							cornerColor[2][1] = background;
+							cornerColor[2][2] = background;
 						}
 						/* left bottom corner */
-						if (-300 <= cornerY[0] && cornerY[0] < 300 && cornerZ[1] > -900 && cornerZ[1] <= -300)
+						if (-(imageSize/2) <= cornerY[0] && cornerY[0] < (imageSize/2) && cornerZ[1] > cubeZ-(imageSize/2) && cornerZ[1] <= cubeZ+(imageSize/2))
 						{	
-							cornerColor[3][0] = imagBuffer2[-300-cornerZ[1]][cornerY[0]+300][0];
-							cornerColor[3][1] = imagBuffer2[-300-cornerZ[1]][cornerY[0]+300][1];
-							cornerColor[3][2] = imagBuffer2[-300-cornerZ[1]][cornerY[0]+300][2];
+							cornerColor[3][0] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[1]][cornerY[0]+(imageSize/2)][0];
+							cornerColor[3][1] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[1]][cornerY[0]+(imageSize/2)][1];
+							cornerColor[3][2] = imagBuffer2[cubeZ+(imageSize/2)-cornerZ[1]][cornerY[0]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[3][0] = 255;
-							cornerColor[3][1] = 255;
-							cornerColor[3][2] = 255;
+							cornerColor[3][0] = background;
+							cornerColor[3][1] = background;
+							cornerColor[3][2] = background;
 						}
 						
 						/*color at rotated/zoomed pixel, Bilinear interpolation using info from 4 surrounding pixels */
@@ -513,7 +544,7 @@ static void BasicProjection(void)
 			/* Plane 3*/			
 			if (viewVector[2] * 1 > 0)     // plane 3 normal dot product with viewVector
 			{
-				t = -(900+viewPoint[2])/viewVector[2];
+				t = (cubeZ-(imageSize/2)-viewPoint[2])/viewVector[2];
 				if ( t >= 0 && t < depth ) 
 				{
 					xNew = viewVector[0] * t + viewPoint[0];
@@ -524,63 +555,63 @@ static void BasicProjection(void)
 					cornerY[0] = (int)yNew;
 					cornerY[1] = (int)yNew + 1;
 					
-					if (((-300 < cornerX[0] && cornerX[0] <= 300) || (-300 < cornerX[1] && cornerX[1] <= 300)) &&
-						((cornerY[0] >= -300 && cornerY[0] < 300) || (cornerY[1] >= -300 && cornerY[1] < 300)))
+					if (((-(imageSize/2) < cornerX[0] && cornerX[0] <= (imageSize/2)) || (-(imageSize/2) < cornerX[1] && cornerX[1] <= (imageSize/2))) &&
+						((cornerY[0] >= -(imageSize/2) && cornerY[0] < (imageSize/2)) || (cornerY[1] >= -(imageSize/2) && cornerY[1] < (imageSize/2))))
 					{
 						depth = t;
 					
 						/* get RGB color info for 4 surrounding pixels
 						/* left top corner */
-						if (-300 < cornerX[0] && cornerX[0] <= 300 && cornerY[0] >= -300 && cornerY[0] < 300)
+						if (-(imageSize/2) < cornerX[0] && cornerX[0] <= (imageSize/2) && cornerY[0] >= -(imageSize/2) && cornerY[0] < (imageSize/2))
 						{	
-							cornerColor[0][0] = imagBuffer3[-cornerX[0]+300][cornerY[0]+300][0];
-							cornerColor[0][1] = imagBuffer3[-cornerX[0]+300][cornerY[0]+300][1];
-							cornerColor[0][2] = imagBuffer3[-cornerX[0]+300][cornerY[0]+300][2];
+							cornerColor[0][0] = imagBuffer3[-cornerX[0]+(imageSize/2)][cornerY[0]+(imageSize/2)][0];
+							cornerColor[0][1] = imagBuffer3[-cornerX[0]+(imageSize/2)][cornerY[0]+(imageSize/2)][1];
+							cornerColor[0][2] = imagBuffer3[-cornerX[0]+(imageSize/2)][cornerY[0]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[0][0] = 255;
-							cornerColor[0][1] = 255;
-							cornerColor[0][2] = 255;
+							cornerColor[0][0] = background;
+							cornerColor[0][1] = background;
+							cornerColor[0][2] = background;
 						}
 						/* right top corner */
-						if (-300 < cornerX[1] && cornerX[1] <= 300 && cornerY[0] >= -300 && cornerY[0] < 300)
+						if (-(imageSize/2) < cornerX[1] && cornerX[1] <= (imageSize/2) && cornerY[0] >= -(imageSize/2) && cornerY[0] < (imageSize/2))
 						{	
-							cornerColor[1][0] = imagBuffer3[-cornerX[1]+300][cornerY[0]+300][0];
-							cornerColor[1][1] = imagBuffer3[-cornerX[1]+300][cornerY[0]+300][1];
-							cornerColor[1][2] = imagBuffer3[-cornerX[1]+300][cornerY[0]+300][2];
+							cornerColor[1][0] = imagBuffer3[-cornerX[1]+(imageSize/2)][cornerY[0]+(imageSize/2)][0];
+							cornerColor[1][1] = imagBuffer3[-cornerX[1]+(imageSize/2)][cornerY[0]+(imageSize/2)][1];
+							cornerColor[1][2] = imagBuffer3[-cornerX[1]+(imageSize/2)][cornerY[0]+(imageSize/2)][2];
 						}	
 						else
 						{
-							cornerColor[1][0] = 255;
-							cornerColor[1][1] = 255;
-							cornerColor[1][2] = 255;
+							cornerColor[1][0] = background;
+							cornerColor[1][1] = background;
+							cornerColor[1][2] = background;
 						}
 						/* right bottom corner */
-						if (-300 < cornerX[1] && cornerX[1] <= 300 && cornerY[1] >= -300 && cornerY[1] < 300)
+						if (-(imageSize/2) < cornerX[1] && cornerX[1] <= (imageSize/2) && cornerY[1] >= -(imageSize/2) && cornerY[1] < (imageSize/2))
 						{	
-							cornerColor[2][0] = imagBuffer3[-cornerX[1]+300][cornerY[1]+300][0];
-							cornerColor[2][1] = imagBuffer3[-cornerX[1]+300][cornerY[1]+300][1];
-							cornerColor[2][2] = imagBuffer3[-cornerX[1]+300][cornerY[1]+300][2];
+							cornerColor[2][0] = imagBuffer3[-cornerX[1]+(imageSize/2)][cornerY[1]+(imageSize/2)][0];
+							cornerColor[2][1] = imagBuffer3[-cornerX[1]+(imageSize/2)][cornerY[1]+(imageSize/2)][1];
+							cornerColor[2][2] = imagBuffer3[-cornerX[1]+(imageSize/2)][cornerY[1]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[2][0] = 255;
-							cornerColor[2][1] = 255;
-							cornerColor[2][2] = 255;
+							cornerColor[2][0] = background;
+							cornerColor[2][1] = background;
+							cornerColor[2][2] = background;
 						}
 						/* left bottom corner */
-						if (-300 < cornerX[0] && cornerX[0] <= 300 && cornerY[1] >= -300 && cornerY[1] < 300)
+						if (-(imageSize/2) < cornerX[0] && cornerX[0] <= (imageSize/2) && cornerY[1] >= -(imageSize/2) && cornerY[1] < (imageSize/2))
 						{	
-							cornerColor[3][0] = imagBuffer3[-cornerX[0]+300][cornerY[1]+300][0];
-							cornerColor[3][1] = imagBuffer3[-cornerX[0]+300][cornerY[1]+300][1];
-							cornerColor[3][2] = imagBuffer3[-cornerX[0]+300][cornerY[1]+300][2];
+							cornerColor[3][0] = imagBuffer3[-cornerX[0]+(imageSize/2)][cornerY[1]+(imageSize/2)][0];
+							cornerColor[3][1] = imagBuffer3[-cornerX[0]+(imageSize/2)][cornerY[1]+(imageSize/2)][1];
+							cornerColor[3][2] = imagBuffer3[-cornerX[0]+(imageSize/2)][cornerY[1]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[3][0] = 255;
-							cornerColor[3][1] = 255;
-							cornerColor[3][2] = 255;
+							cornerColor[3][0] = background;
+							cornerColor[3][1] = background;
+							cornerColor[3][2] = background;
 						}
 						
 						/*color at rotated/zoomed pixel, Bilinear interpolation using info from 4 surrounding pixels */
@@ -603,7 +634,7 @@ static void BasicProjection(void)
 		/* Plane 4*/
 		if (viewVector[0] * 1 > 0)     // plane 4 normal dot product with viewVector
 			{
-				t = -(300+viewPoint[0])/viewVector[0];
+				t = -((imageSize/2)+viewPoint[0])/viewVector[0];
 				if (t >=0 && t < depth) 
 				{
 					yNew = viewVector[1] * t + viewPoint[1];
@@ -614,64 +645,64 @@ static void BasicProjection(void)
 					cornerZ[0] = (int)zNew;
 					cornerZ[1] = (int)zNew + 1;
 					
-					if (((-300 <= cornerY[0] && cornerY[0] < 300) || (-300 <= cornerY[1] && cornerY[1] < 300 )) &&
-						((cornerZ[0] >= -900 && cornerZ[0] < -300) || (cornerZ[1] >= -900 && cornerZ[1] < -300)))
+					if (((-(imageSize/2) <= cornerY[0] && cornerY[0] < (imageSize/2)) || (-(imageSize/2) <= cornerY[1] && cornerY[1] < (imageSize/2) )) &&
+						((cornerZ[0] >= cubeZ-(imageSize/2) && cornerZ[0] < cubeZ+(imageSize/2)) || (cornerZ[1] >= cubeZ-(imageSize/2) && cornerZ[1] < cubeZ+(imageSize/2))))
 					{
 						depth = t;
 						
 						/* get RGB color info for 4 surrounding pixels
 						/* left top corner */
 												
-						if (-300 <= cornerY[0] && cornerY[0] < 300 && cornerZ[0] >= -900 && cornerZ[0] < -300)
+						if (-(imageSize/2) <= cornerY[0] && cornerY[0] < (imageSize/2) && cornerZ[0] >= cubeZ-(imageSize/2) && cornerZ[0] < cubeZ+(imageSize/2))
 						{	depth = t;
-							cornerColor[0][0] = imagBuffer4[cornerZ[0]+900][cornerY[0]+300][0];
-							cornerColor[0][1] = imagBuffer4[cornerZ[0]+900][cornerY[0]+300][1];
-							cornerColor[0][2] = imagBuffer4[cornerZ[0]+900][cornerY[0]+300][2];
+							cornerColor[0][0] = imagBuffer4[cornerZ[0]-(cubeZ-(imageSize/2))][cornerY[0]+(imageSize/2)][0];
+							cornerColor[0][1] = imagBuffer4[cornerZ[0]-(cubeZ-(imageSize/2))][cornerY[0]+(imageSize/2)][1];
+							cornerColor[0][2] = imagBuffer4[cornerZ[0]-(cubeZ-(imageSize/2))][cornerY[0]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[0][0] = 255;
-							cornerColor[0][1] = 255;
-							cornerColor[0][2] = 255;
+							cornerColor[0][0] = background;
+							cornerColor[0][1] = background;
+							cornerColor[0][2] = background;
 						}
 						/* right top corner */
-						if (-300 <= cornerY[1] && cornerY[1] < 300 && cornerZ[0] >= -900 && cornerZ[0] < -300)
+						if (-(imageSize/2) <= cornerY[1] && cornerY[1] < (imageSize/2) && cornerZ[0] >= cubeZ-(imageSize/2) && cornerZ[0] < cubeZ+(imageSize/2))
 						{	depth = t;
-							cornerColor[1][0] = imagBuffer4[cornerZ[0]+900][cornerY[1]+300][0];
-							cornerColor[1][1] = imagBuffer4[cornerZ[0]+900][cornerY[1]+300][1];
-							cornerColor[1][2] = imagBuffer4[cornerZ[0]+900][cornerY[1]+300][2];
+							cornerColor[1][0] = imagBuffer4[cornerZ[0]-(cubeZ-(imageSize/2))][cornerY[1]+(imageSize/2)][0];
+							cornerColor[1][1] = imagBuffer4[cornerZ[0]-(cubeZ-(imageSize/2))][cornerY[1]+(imageSize/2)][1];
+							cornerColor[1][2] = imagBuffer4[cornerZ[0]-(cubeZ-(imageSize/2))][cornerY[1]+(imageSize/2)][2];
 						}	
 						else
 						{
-							cornerColor[1][0] = 255;
-							cornerColor[1][1] = 255;
-							cornerColor[1][2] = 255;
+							cornerColor[1][0] = background;
+							cornerColor[1][1] = background;
+							cornerColor[1][2] = background;
 						}
 						/* right bottom corner */
-						if (-300 <= cornerY[1] && cornerY[1] < 300 && cornerZ[1] >= -900 && cornerZ[1] < -300)
+						if (-(imageSize/2) <= cornerY[1] && cornerY[1] < (imageSize/2) && cornerZ[1] >= cubeZ-(imageSize/2) && cornerZ[1] < cubeZ+(imageSize/2))
 						{	depth = t;
-							cornerColor[2][0] = imagBuffer4[cornerZ[1]+900][cornerY[1]+300][0];
-							cornerColor[2][1] = imagBuffer4[cornerZ[1]+900][cornerY[1]+300][1];
-							cornerColor[2][2] = imagBuffer4[cornerZ[1]+900][cornerY[1]+300][2];
+							cornerColor[2][0] = imagBuffer4[cornerZ[1]-(cubeZ-(imageSize/2))][cornerY[1]+(imageSize/2)][0];
+							cornerColor[2][1] = imagBuffer4[cornerZ[1]-(cubeZ-(imageSize/2))][cornerY[1]+(imageSize/2)][1];
+							cornerColor[2][2] = imagBuffer4[cornerZ[1]-(cubeZ-(imageSize/2))][cornerY[1]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[2][0] = 255;
-							cornerColor[2][1] = 255;
-							cornerColor[2][2] = 255;
+							cornerColor[2][0] = background;
+							cornerColor[2][1] = background;
+							cornerColor[2][2] = background;
 						}
 						/* left bottom corner */
-						if (-300 <= cornerY[0] && cornerY[0] < 300 && cornerZ[1] >= -900 && cornerZ[1] < -300)
+						if (-(imageSize/2) <= cornerY[0] && cornerY[0] < (imageSize/2) && cornerZ[1] >= cubeZ-(imageSize/2) && cornerZ[1] < cubeZ+(imageSize/2))
 						{	depth = t;
-							cornerColor[3][0] = imagBuffer4[cornerZ[1]+900][cornerY[0]+300][0];
-							cornerColor[3][1] = imagBuffer4[cornerZ[1]+900][cornerY[0]+300][1];
-							cornerColor[3][2] = imagBuffer4[cornerZ[1]+900][cornerY[0]+300][2];
+							cornerColor[3][0] = imagBuffer4[cornerZ[1]-(cubeZ-(imageSize/2))][cornerY[0]+(imageSize/2)][0];
+							cornerColor[3][1] = imagBuffer4[cornerZ[1]-(cubeZ-(imageSize/2))][cornerY[0]+(imageSize/2)][1];
+							cornerColor[3][2] = imagBuffer4[cornerZ[1]-(cubeZ-(imageSize/2))][cornerY[0]+(imageSize/2)][2];
 						}
 						else
 						{
-							cornerColor[3][0] = 255;
-							cornerColor[3][1] = 255;
-							cornerColor[3][2] = 255;
+							cornerColor[3][0] = background;
+							cornerColor[3][1] = background;
+							cornerColor[3][2] = background;
 						}
 						
 						/*color at rotated/zoomed pixel, Bilinear interpolation using info from 4 surrounding pixels */
@@ -692,9 +723,9 @@ static void BasicProjection(void)
 			}
 			
 			/* Plane 5*/
-			if (viewVector[1] * 1 < 0)     // plane 5 normal dot product with viewVector
+			if (viewVector[1] * 1 > 0)     // plane 5 normal dot product with viewVector
 			{
-				t = (300-viewPoint[1])/viewVector[1];
+				t = (-(imageSize/2)-viewPoint[1])/viewVector[1];
 				if (t >= 0 && t < depth)
 				{
 					
@@ -706,63 +737,153 @@ static void BasicProjection(void)
 					cornerZ[0] = (int)zNew;
 					cornerZ[1] = (int)zNew + 1;
 					
-					if (((-300 <= cornerX[0] && cornerX[0] < 300) || (-300 <= cornerX[1] && cornerX[1] < 300)) &&
-						((cornerZ[0] >= -900 && cornerZ[0] < -300) || (cornerZ[1] >= -900 && cornerZ[1] < -300)))
+					if (((-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2)) || (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2))) &&
+						((cornerZ[0] >= cubeZ-(imageSize/2) && cornerZ[0] < cubeZ+(imageSize/2)) || (cornerZ[1] >= cubeZ-(imageSize/2) && cornerZ[1] < cubeZ+(imageSize/2))))
 					{
 						depth = t;
 						
 						/* get RGB color info for 4 surrounding pixels
 						/* left top corner */
-						if (-300 <= cornerX[0] && cornerX[0] < 300 && cornerZ[0] >= -900 && cornerZ[0] < -300)
+						if (-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2) && cornerZ[0] >= cubeZ-(imageSize/2) && cornerZ[0] < cubeZ+(imageSize/2))
 						{	
-							cornerColor[0][0] = imagBuffer5[cornerX[0]+300][cornerZ[0]+900][0];
-							cornerColor[0][1] = imagBuffer5[cornerX[0]+300][cornerZ[0]+900][1];
-							cornerColor[0][2] = imagBuffer5[cornerX[0]+300][cornerZ[0]+900][2];
+							cornerColor[0][0] = imagBuffer5[cornerX[0]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][0];
+							cornerColor[0][1] = imagBuffer5[cornerX[0]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][1];
+							cornerColor[0][2] = imagBuffer5[cornerX[0]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][2];
 						}
 						else
 						{
-							cornerColor[0][0] = 255;
-							cornerColor[0][1] = 255;
-							cornerColor[0][2] = 255;
+							cornerColor[0][0] = background;
+							cornerColor[0][1] = background;
+							cornerColor[0][2] = background;
 						}
 						/* right top corner */
-						if (-300 <= cornerX[1] && cornerX[1] < 300 && cornerZ[0] >= -900 && cornerZ[0] < -300)
+						if (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2) && cornerZ[0] >= cubeZ-(imageSize/2) && cornerZ[0] < cubeZ+(imageSize/2))
 						{	
-							cornerColor[1][0] = imagBuffer5[cornerX[1]+300][cornerZ[0]+900][0];
-							cornerColor[1][1] = imagBuffer5[cornerX[1]+300][cornerZ[0]+900][1];
-							cornerColor[1][2] = imagBuffer5[cornerX[1]+300][cornerZ[0]+900][2];
+							cornerColor[1][0] = imagBuffer5[cornerX[1]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][0];
+							cornerColor[1][1] = imagBuffer5[cornerX[1]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][1];
+							cornerColor[1][2] = imagBuffer5[cornerX[1]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][2];
 						}	
 						else
 						{
-							cornerColor[1][0] = 255;
-							cornerColor[1][1] = 255;
-							cornerColor[1][2] = 255;
+							cornerColor[1][0] = background;
+							cornerColor[1][1] = background;
+							cornerColor[1][2] = background;
 						}
 						/* right bottom corner */
-						if (-300 <= cornerX[1] && cornerX[1] < 300 && cornerZ[1] >= -900 && cornerZ[1] < -300)
+						if (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2) && cornerZ[1] >= cubeZ-(imageSize/2) && cornerZ[1] < cubeZ+(imageSize/2))
 						{	
-							cornerColor[2][0] = imagBuffer5[cornerX[1]+300][cornerZ[1]+900][0];
-							cornerColor[2][1] = imagBuffer5[cornerX[1]+300][cornerZ[1]+900][1];
-							cornerColor[2][2] = imagBuffer5[cornerX[1]+300][cornerZ[1]+900][2];
+							cornerColor[2][0] = imagBuffer5[cornerX[1]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][0];
+							cornerColor[2][1] = imagBuffer5[cornerX[1]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][1];
+							cornerColor[2][2] = imagBuffer5[cornerX[1]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][2];
 						}
 						else
 						{
-							cornerColor[2][0] = 255;
-							cornerColor[2][1] = 255;
-							cornerColor[2][2] = 255;
+							cornerColor[2][0] = background;
+							cornerColor[2][1] = background;
+							cornerColor[2][2] = background;
 						}
 						/* left bottom corner */
-						if (-300 <= cornerX[0] && cornerX[0] < 300 && cornerZ[1] >= -900 && cornerZ[1] < -300)
+						if (-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2) && cornerZ[1] >= cubeZ-(imageSize/2) && cornerZ[1] < cubeZ+(imageSize/2))
 						{	
-							cornerColor[3][0] = imagBuffer5[cornerX[0]+300][cornerZ[1]+900][0];
-							cornerColor[3][1] = imagBuffer5[cornerX[0]+300][cornerZ[1]+900][1];
-							cornerColor[3][2] = imagBuffer5[cornerX[0]+300][cornerZ[1]+900][2];
+							cornerColor[3][0] = imagBuffer5[cornerX[0]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][0];
+							cornerColor[3][1] = imagBuffer5[cornerX[0]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][1];
+							cornerColor[3][2] = imagBuffer5[cornerX[0]+(imageSize/2)][cornerZ[0]-(cubeZ-(imageSize/2))][2];
 						}
 						else
 						{
-							cornerColor[3][0] = 255;
-							cornerColor[3][1] = 255;
-							cornerColor[3][2] = 255;
+							cornerColor[3][0] = background;
+							cornerColor[3][1] = background;
+							cornerColor[3][2] = background;
+						}
+						
+						/*color at rotated/zoomed pixel, Bilinear interpolation using info from 4 surrounding pixels */
+						imagBuffer[i][j][0] = (int) (cosTheta[5]*(cornerColor[0][0]*(cornerX[1] - xNew)*(zNew - cornerZ[0]) 
+										   + cornerColor[1][0]*(xNew - cornerX[0])*(zNew - cornerZ[0]) 
+										   + cornerColor[2][0]*(xNew - cornerX[0])*(cornerZ[1] - zNew) 
+										   + cornerColor[3][0]*(cornerX[1] - xNew)*(cornerZ[1] - zNew)));
+						imagBuffer[i][j][1] = (int)(cosTheta[5]*(cornerColor[0][1]*(cornerX[1] - xNew)*(zNew - cornerZ[0]) 
+										   + cornerColor[1][1]*(xNew - cornerX[0])*(zNew - cornerZ[0]) 
+										   + cornerColor[2][1]*(xNew - cornerX[0])*(cornerZ[1] - zNew) 
+										   + cornerColor[3][1]*(cornerX[1] - xNew)*(cornerZ[1] - zNew)));
+						imagBuffer[i][j][2] = (int)(cosTheta[5]*(cornerColor[0][2]*(cornerX[1] - xNew)*(zNew - cornerZ[0]) 
+										   + cornerColor[1][2]*(xNew - cornerX[0])*(zNew - cornerZ[0]) 
+										   + cornerColor[2][2]*(xNew - cornerX[0])*(cornerZ[1] - zNew) 
+										   + cornerColor[3][2]*(cornerX[1] - xNew)*(cornerZ[1] - zNew)));
+					}
+				}
+			}
+			/* Plane 6*/
+			if (viewVector[1] * 1 < 0)     // plane 6 normal dot product with viewVector
+			{
+				t = ((imageSize/2)-viewPoint[1])/viewVector[1];
+				if (t >= 0 && t < depth)
+				{
+					
+					xNew = viewVector[0] * t + viewPoint[0];
+					zNew = viewVector[2] * t + viewPoint[2];
+										
+					cornerX[0] = (int)xNew;
+					cornerX[1] = (int)xNew + 1;
+					cornerZ[0] = (int)zNew;
+					cornerZ[1] = (int)zNew + 1;
+					
+					if (((-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2)) || (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2))) &&
+						((cornerZ[0] > cubeZ-(imageSize/2) && cornerZ[0] <= cubeZ+(imageSize/2)) || (cornerZ[1] > cubeZ-(imageSize/2) && cornerZ[1] <= cubeZ+(imageSize/2))))
+					{
+						depth = t;
+						
+						/* get RGB color info for 4 surrounding pixels
+						/* left top corner */
+						if (-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2) && cornerZ[0] > cubeZ-(imageSize/2) && cornerZ[0] <= cubeZ+(imageSize/2))
+						{	
+							cornerColor[0][0] = imagBuffer6[cornerX[0]+(imageSize/2)][-cornerZ[1]-(imageSize/2)][0];
+							cornerColor[0][1] = imagBuffer6[cornerX[0]+(imageSize/2)][-cornerZ[1]-(imageSize/2)][1];
+							cornerColor[0][2] = imagBuffer6[cornerX[0]+(imageSize/2)][-cornerZ[1]-(imageSize/2)][2];
+						}
+						else
+						{
+							cornerColor[0][0] = background;
+							cornerColor[0][1] = background;
+							cornerColor[0][2] = background;
+						}
+						/* right top corner */
+						if (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2) && cornerZ[0] > cubeZ-(imageSize/2) && cornerZ[0] <= cubeZ+(imageSize/2))
+						{	
+							cornerColor[1][0] = imagBuffer6[cornerX[1]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][0];
+							cornerColor[1][1] = imagBuffer6[cornerX[1]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][1];
+							cornerColor[1][2] = imagBuffer6[cornerX[1]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][2];
+						}	
+						else
+						{
+							cornerColor[1][0] = background;
+							cornerColor[1][1] = background;
+							cornerColor[1][2] = background;
+						}
+						/* right bottom corner */
+						if (-(imageSize/2) <= cornerX[1] && cornerX[1] < (imageSize/2) && cornerZ[1] > cubeZ-(imageSize/2) && cornerZ[1] <= cubeZ+(imageSize/2))
+						{	
+							cornerColor[2][0] = imagBuffer6[cornerX[1]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][0];
+							cornerColor[2][1] = imagBuffer6[cornerX[1]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][1];
+							cornerColor[2][2] = imagBuffer6[cornerX[1]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][2];
+						}
+						else
+						{
+							cornerColor[2][0] = background;
+							cornerColor[2][1] = background;
+							cornerColor[2][2] = background;
+						}
+						/* left bottom corner */
+						if (-(imageSize/2) <= cornerX[0] && cornerX[0] < (imageSize/2) && cornerZ[1] > cubeZ-(imageSize/2) && cornerZ[1] <= cubeZ+(imageSize/2))
+						{	
+							cornerColor[3][0] = imagBuffer6[cornerX[0]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][0];
+							cornerColor[3][1] = imagBuffer6[cornerX[0]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][1];
+							cornerColor[3][2] = imagBuffer6[cornerX[0]+(imageSize/2)][-cornerZ[1]+(cubeZ+(imageSize/2))][2];
+						}
+						else
+						{
+							cornerColor[3][0] = background;
+							cornerColor[3][1] = background;
+							cornerColor[3][2] = background;
 						}
 						
 						/*color at rotated/zoomed pixel, Bilinear interpolation using info from 4 surrounding pixels */
@@ -782,103 +903,12 @@ static void BasicProjection(void)
 				}
 			}
 			
-			/* Plane 6*/
-			if (viewVector[1] * 1 > 0)     // plane 6 normal dot product with viewVector
-			{
-				t = (-300-viewPoint[1])/viewVector[1];
-				if (t >= 0 && t < depth)
-				{
-					
-					xNew = viewVector[0] * t + viewPoint[0];
-					zNew = viewVector[2] * t + viewPoint[2];
-										
-					cornerX[0] = (int)xNew;
-					cornerX[1] = (int)xNew + 1;
-					cornerZ[0] = (int)zNew;
-					cornerZ[1] = (int)zNew + 1;
-					
-					if (((-300 <= cornerX[0] && cornerX[0] < 300) || (-300 <= cornerX[1] && cornerX[1] < 300)) &&
-						((cornerZ[0] > -900 && cornerZ[0] <= -300) || (cornerZ[1] > -900 && cornerZ[1] <= -300)))
-					{
-						depth = t;
-						
-						/* get RGB color info for 4 surrounding pixels
-						/* left top corner */
-						if (-300 <= cornerX[0] && cornerX[0] < 300 && cornerZ[0] > -900 && cornerZ[0] <= -300)
-						{	
-							cornerColor[0][0] = imagBuffer6[cornerX[0]+300][-cornerZ[0]-300][0];
-							cornerColor[0][1] = imagBuffer6[cornerX[0]+300][-cornerZ[0]-300][1];
-							cornerColor[0][2] = imagBuffer6[cornerX[0]+300][-cornerZ[0]-300][2];
-						}
-						else
-						{
-							cornerColor[0][0] = 255;
-							cornerColor[0][1] = 255;
-							cornerColor[0][2] = 255;
-						}
-						/* right top corner */
-						if (-300 <= cornerX[1] && cornerX[1] < 300 && cornerZ[0] > -900 && cornerZ[0] <= -300)
-						{	
-							cornerColor[1][0] = imagBuffer6[cornerX[1]+300][-cornerZ[0]-300][0];
-							cornerColor[1][1] = imagBuffer6[cornerX[1]+300][-cornerZ[0]-300][1];
-							cornerColor[1][2] = imagBuffer6[cornerX[1]+300][-cornerZ[0]-300][2];
-						}	
-						else
-						{
-							cornerColor[1][0] = 255;
-							cornerColor[1][1] = 255;
-							cornerColor[1][2] = 255;
-						}
-						/* right bottom corner */
-						if (-300 <= cornerX[1] && cornerX[1] < 300 && cornerZ[1] > -900 && cornerZ[1] <= -300)
-						{	
-							cornerColor[2][0] = imagBuffer6[cornerX[1]+300][-cornerZ[1]-300][0];
-							cornerColor[2][1] = imagBuffer6[cornerX[1]+300][-cornerZ[1]-300][1];
-							cornerColor[2][2] = imagBuffer6[cornerX[1]+300][-cornerZ[1]-300][2];
-						}
-						else
-						{
-							cornerColor[2][0] = 255;
-							cornerColor[2][1] = 255;
-							cornerColor[2][2] = 255;
-						}
-						/* left bottom corner */
-						if (-300 <= cornerX[0] && cornerX[0] < 300 && cornerZ[1] > -900 && cornerZ[1] <= -300)
-						{	
-							cornerColor[3][0] = imagBuffer6[cornerX[0]+300][-cornerZ[1]-300][0];
-							cornerColor[3][1] = imagBuffer6[cornerX[0]+300][-cornerZ[1]-300][1];
-							cornerColor[3][2] = imagBuffer6[cornerX[0]+300][-cornerZ[1]-300][2];
-						}
-						else
-						{
-							cornerColor[3][0] = 255;
-							cornerColor[3][1] = 255;
-							cornerColor[3][2] = 255;
-						}
-						
-						/*color at rotated/zoomed pixel, Bilinear interpolation using info from 4 surrounding pixels */
-						imagBuffer[i][j][0] = (int) (cosTheta[5]*(cornerColor[0][0]*(cornerX[1] - xNew)*(zNew - cornerZ[0]) 
-										   + cornerColor[1][0]*(xNew - cornerX[0])*(zNew - cornerZ[0]) 
-										   + cornerColor[2][0]*(xNew - cornerX[0])*(cornerZ[1] - zNew) 
-										   + cornerColor[3][0]*(cornerX[1] - xNew)*(cornerZ[1] - zNew)));
-						imagBuffer[i][j][1] = (int)(cosTheta[5]*(cornerColor[0][1]*(cornerX[1] - xNew)*(zNew - cornerZ[0]) 
-										   + cornerColor[1][1]*(xNew - cornerX[0])*(zNew - cornerZ[0]) 
-										   + cornerColor[2][1]*(xNew - cornerX[0])*(cornerZ[1] - zNew) 
-										   + cornerColor[3][1]*(cornerX[1] - xNew)*(cornerZ[1] - zNew)));
-						imagBuffer[i][j][2] = (int)(cosTheta[5]*(cornerColor[0][2]*(cornerX[1] - xNew)*(zNew - cornerZ[0]) 
-										   + cornerColor[1][2]*(xNew - cornerX[0])*(zNew - cornerZ[0]) 
-										   + cornerColor[2][2]*(xNew - cornerX[0])*(cornerZ[1] - zNew) 
-										   + cornerColor[3][2]*(cornerX[1] - xNew)*(cornerZ[1] - zNew)));
-					}
-				}
-			}
-			
 			// if the observing ray does not hit any plane, draw the current window pixel as background color
 			if (depth == pow(2,16))
 				{
-					imagBuffer[i][j][0] = 255;
-					imagBuffer[i][j][1] = 255;
-					imagBuffer[i][j][2] = 255;
+					imagBuffer[i][j][0] = background;
+					imagBuffer[i][j][1] = background;
+					imagBuffer[i][j][2] = background;
 				}
 		}
 	}

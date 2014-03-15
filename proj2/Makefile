@@ -8,6 +8,7 @@ APPNAME = hw2
 
 APPCODE = \
 hw2.cxx \
+hw2bmode.cxx\
 raster.cxx \
 raster-jpeg.cxx 
 

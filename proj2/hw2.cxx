@@ -13,21 +13,24 @@
 #include"glmode.h"
 
 /* default window size on our display device, in pixels */
-static int width  = 600;
-static int height = 600;
-
+static int gwidth  = 600;
+static int gheight = 600;
 // read in jpg file and texture file
 static char *infile[6];
-static ByteRaster *image[6];
+static ByteRaster *gimage[6];
 GLuint texture[6];
 
 //rotation parameters, angle
 static float rot_1 = -2.0, rot_2 = 0.0;
+static float rot_temp_1 = 0.0, rot_temp_2 = 0.0;
 float sizeofCube = 1.0f;
 // total rotation angle , 360 for a circle. mode is to record the circle.
 static float rot_a = 0.0;
 static int mode = 0;
 static const float delta = 1e-3;
+
+extern void basicWindowDisplay(int *argc, char **argv);
+extern void basicImageRead();
 
 void LoadGLTextures(int k)
 {
@@ -40,8 +43,8 @@ void LoadGLTextures(int k)
     // 2d texture, level of detail 0 (normal), 3 components (red, green, blue), x size from image,
     // y size from image, 
     // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
-    glTexImage2D(GL_TEXTURE_2D, 0, 3, image[k]->width(), image[k]->height(),
-            0, GL_RGB, GL_UNSIGNED_BYTE, image[k]->data);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, gimage[k]->width(), gimage[k]->height(),
+            0, GL_RGB, GL_UNSIGNED_BYTE, gimage[k]->data);
             
     glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping
     glShadeModel(GL_SMOOTH);                        // Enable Smooth Shading
@@ -187,8 +190,8 @@ void CreateWindow() {
         
 	 swa.event_mask = KeyPressMask;
 	 swa.colormap   = cmap;
-	 win = XCreateWindow(dpy, root, 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
-	 XStoreName(dpy, win, "HW2");
+	 win = XCreateWindow(dpy, root, 0, 0, gwidth, gheight, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
+	 XStoreName(dpy, win, "HW2 - GL Mode");
 	 XMapWindow(dpy, win);
 }
 
@@ -226,29 +229,6 @@ void Exit() {
 	glXDestroyContext(dpy, glc);
 	XDestroyWindow(dpy, win);
 	XCloseDisplay(dpy);
-	exit(0);
-}
-
-// check for the keyboard event.
-void Key_CB() {
-    // detect the key board input
-    if(XCheckWindowEvent(dpy, win, KeyPressMask, &xev)) {
-        char    *key_string = XKeysymToString(XkbKeycodeToKeysym(dpy, xev.xkey.keycode, 0, 0));
-		
-        if(strncmp(key_string, "F1", 2) == 0) {
-                rot_1 = 0.0; 
-				rot_2 = 0.0;
-        }
-
-        else if(strncmp(key_string, "Escape", 5) == 0) {
-                Exit();
-        }
-		
-	else if(strncmp(key_string, "b", 1) == 0)
-	{
-			// transform the draw mode
-	}
-    }
 }
 
 // Read in all the jpg file to image array
@@ -261,8 +241,65 @@ void ReadInFile(int face){
 	infile[5] = "5.jpg";
 	int i;
 	for(i = 0; i < face; i++)
-		image[i] = read_jpeg_image(infile[i]);
+		gimage[i] = read_jpeg_image(infile[i]);
 }
+
+// check for the keyboard event.
+void Key_CB() {
+    // detect the key board input
+    if(XCheckWindowEvent(dpy, win, KeyPressMask, &xev)) {
+        char    *key_string = XKeysymToString(XkbKeycodeToKeysym(dpy, xev.xkey.keycode, 0, 0));
+	// stop the rotation of GL mode
+        if(strncmp(key_string, "s", 1) == 0) {
+                rot_temp_1 = rot_1;
+		rot_temp_2 = rot_2;
+		rot_1 = 0.0; 
+		rot_2 = 0.0;
+        }
+
+	// restart the rotation of GL mode
+	else if(strncmp(key_string, "r", 1) == 0)
+	{
+		rot_1 = rot_temp_1;
+		rot_2 = rot_temp_2;
+	}
+	
+	// quit the GL mode and baisc mode.
+        else if(strncmp(key_string, "q", 1) == 0) {
+                Exit();
+		exit(0);
+        }
+		
+	// switch to the GL mode.
+        else if(strncmp(key_string, "g", 1) == 0) {
+		 Exit();         
+	      	 ReadInFile(6);
+		 CreateWindow();
+		 InitGL();
+	 
+	     while(true) {
+        	 UpdateTimer();
+	         Rotate();
+	         Configurate(); 
+         	 usleep(1000);
+	         Key_CB();
+       		}	
+	}
+
+	// switch to the basic mode.
+	else if(strncmp(key_string, "b", 1) == 0)
+	{
+		// transform the draw mode
+		Exit();
+		int argc = 0;
+		char **argv = NULL;
+		basicImageRead();
+		basicWindowDisplay(&argc, argv);	
+	}
+    }
+}
+
+//#include"hw2bmode.cxx"
 
 int main(int argc, char *argv[]){
 	 ReadInFile(6);
