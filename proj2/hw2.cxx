@@ -22,8 +22,12 @@ static ByteRaster *image[6];
 GLuint texture[6];
 
 //rotation parameters, angle
-float rot_z_vel = 0.0, rot_y_vel = -20.0;
+static float rot_1 = -2.0, rot_2 = 0.0;
 float sizeofCube = 1.0f;
+// total rotation angle , 360 for a circle. mode is to record the circle.
+static float rot_a = 0.0;
+static int mode = 0;
+static const float delta = 1e-3;
 
 void LoadGLTextures(int k)
 {
@@ -121,8 +125,29 @@ void Draw(float sizeofCube) {
 void Rotate() {
 	 glMatrixMode(GL_MODELVIEW);
 	 glLoadIdentity();
-	 glRotatef(rot_y_vel*DT, -1.0, -1.0, -1.0);
-	 glRotatef(rot_z_vel*DT, 0.0, 0.0, 1.0);
+	 if( abs(360 - rot_a) == 0)
+	 {
+	 	rot_a = 0.0;
+		// gettimeofday(&tv0, NULL);
+		// get the mode of
+		if(mode == 0){
+			rot_1 = 0.0;
+			rot_2 = -2.0;
+			mode = 1;
+			}
+		else if(mode == 1){
+			rot_2 = 0.0;
+			rot_1 = -2.0;
+			mode = 0;
+		}
+	 }
+	 
+	 glRotatef(rot_1, 0.0, 0.0, -1.0);
+	 glRotatef(rot_2, -1.0, -1.0, -1.0);
+	 
+	 // calculate how many circle it has.
+	 rot_a = rot_a + abs(rot_1) + abs(rot_2);
+	 
 	 glMultMatrixf(rotation_matrix);
 	 glGetFloatv(GL_MODELVIEW_MATRIX, rotation_matrix);
 }
@@ -168,8 +193,8 @@ void CreateWindow() {
 }
 
 void InitGL() {
-	 gettimeofday(&tv0, NULL);
 	 // create the GL context and give to the current context parameters.
+	 gettimeofday(&tv0, NULL);
 	 glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
 	 glXMakeCurrent(dpy, win, glc);
 	 glEnable(GL_DEPTH_TEST);
@@ -189,11 +214,10 @@ void InitGL() {
 
 // get the time inteval from int rotation time tv0.
 void UpdateTimer() {
- 	LastFrameTimeCounter = TimeCounter;
  	gettimeofday(&tv, NULL);
-	TimeCounter = (float)(tv.tv_sec-tv0.tv_sec) + 0.000001*((float)(tv.tv_usec-tv0.tv_usec));
+	TimeCounter = tv.tv_usec-tv0.tv_usec;
  	// DT will decide what angle should be now.
-	DT = TimeCounter - LastFrameTimeCounter;
+	// DT = TimeCounter - LastFrameTimeCounter;
 }
 
 // exit the grogram safely
@@ -210,37 +234,20 @@ void Key_CB() {
     // detect the key board input
     if(XCheckWindowEvent(dpy, win, KeyPressMask, &xev)) {
         char    *key_string = XKeysymToString(XkbKeycodeToKeysym(dpy, xev.xkey.keycode, 0, 0));
-		// change the direction it rotate.
-		/*
-        if(strncmp(key_string, "Left", 4) == 0) {
-                rot_z_vel -= 100.0*DT;
-        }
-
-        else if(strncmp(key_string, "Right", 5) == 0) {
-                rot_z_vel += 100.0*DT;
-        }
-
-        else if(strncmp(key_string, "Up", 2) == 0) {
-                rot_y_vel -= 100.0*DT;
-        }
-
-        else if(strncmp(key_string, "Down", 4) == 0) {
-                rot_y_vel += 100.0*DT;
-        }
-		*/
+		
         if(strncmp(key_string, "F1", 2) == 0) {
-                rot_y_vel = 0.0; 
-                rot_z_vel = 0.0;
+                rot_1 = 0.0; 
+				rot_2 = 0.0;
         }
 
         else if(strncmp(key_string, "Escape", 5) == 0) {
                 Exit();
         }
 		
-		else if(strncmp(key_string, "b", 1) == 0)
-		{
+	else if(strncmp(key_string, "b", 1) == 0)
+	{
 			// transform the draw mode
-		}
+	}
     }
 }
 

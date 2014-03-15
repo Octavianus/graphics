@@ -13,7 +13,7 @@ Colormap                cmap;
 XSetWindowAttributes    swa;
 XWindowAttributes       wa;
 
-float                   TimeCounter, LastFrameTimeCounter, DT;
+int                     TimeCounter;
 struct timeval          tv, tv0;
 int                     Frame = 1;
 
