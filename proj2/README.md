@@ -1,5 +1,6 @@
 # HW2
 THE TEXTURED ROTATING CUBE
+
 The program begin with GL mode.
 
 Laiyong Mu: mul@email.arizona.edu, 
