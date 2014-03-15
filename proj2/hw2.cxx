@@ -1,3 +1,18 @@
+/*
+ * program start at GL mode.
+ *
+ * Additional features:
+ * 	1. implemented the cube rotation around its diagonal in both mode
+ * 	2. implemented the lighting effect in both mode.
+ *
+ * Operations:
+ * 	"b" switch to basic mode.
+ * 	"g" switch to GL mode.
+ * 	"q" quit the program.
+ * 	"s" in GL mode, stop the rotation.
+ * 	"r" in GL mode, restart the rotation.
+ */
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
