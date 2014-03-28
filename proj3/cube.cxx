@@ -36,16 +36,12 @@
 /* Function Prototypes and Global Variables */
 static ByteRaster *gimage[6];        // pixel buffer for 6 jpeg picture
 
-#include "basicprojection.h"         // functions of rotation and projection in basic mode (pixel by pixel)
-extern void BasicProjection();
-
 extern ByteRaster *read_jpeg_image(const char *filename);
 void ReadInFile(int face);           // read jpeg file to buffer
 static char *infile[6];              // names of the pictures' file
 
 void display();                     // general display function to draw cube
 static int mode = 1;                // 1 = GL mode; 0 = Basic mode
-void BasicDisplay();                // draw in basic mode - manually calculated pixel by pixel
 void GLDisplay();                   // draw in GL mode through gl functions
 static void key_CB(unsigned char key, int x, int y);     // Called on key press 
 
@@ -55,6 +51,8 @@ GLfloat rotation_matrix[16];        // rotation matrix in GL mode
 int refreshMills = 15;              // refresh interval in milliseconds   
 GLfloat angleGL = 0.0f;             // Rotational angle in GL mode
 static int rotateAxis2 = 1;         // 1 = Y axis, -1 = diagonal axis
+float viewy = 2.0;
+float viewz = 0.0;
 
 /* initiation */
 void initGL() {
@@ -90,12 +88,7 @@ void LoadGLTextures(int k) {
 
 /* display() Callback functions for both modes */
 void display(){
-
-	if (mode == 1)
-		GLDisplay();
-	
-	if (mode == 0)
-		BasicDisplay();
+	GLDisplay();
 }
 
 // draw the cube
@@ -186,27 +179,14 @@ void GLDisplay(){
 	glLoadIdentity();                  // Reset transformations
 	glTranslatef(0.0f, 0.0f, -6.5f);   // Move further away from the screen
   
-    // Rotate around Y axis (rotateAxis2 = 1) and diagonal axis (rotateAxis2 = -1)
-	if (rotateAxis2 == 1)
-		glRotatef(angleGL, 0.0f, 1.0f, 0.0f);  
-	if (rotateAxis2 == -1)
-		glRotatef(angleGL, 1.0f, 1.0f, 1.0f);
-		
 	glTranslatef(0.0f, 0.0f, 2.0f);  // Move the center of cube the origin before rotation 
 	
-	gluLookAt(2., 0., 0., 0., 0., 0., 0., 0., 1.);   // set up the eye/camera position
+	gluLookAt(0., viewy, viewz, 0., 0., 0., 0., 0., 1.);   // set up the eye/camera position
 	Draw(sizeofCube);
 	glLoadIdentity();                // Reset the model-view matrix 
 	glFlush();                       //Complete any pending operations 
 	glutSwapBuffers();               // Swap the front and back frame buffers (double buffering)
 	
-	// update rotating angle in 2 degree steps
-	angleGL += 2.0f;
-	// reset rotating angle and axis after each cycle
-	if (angleGL == 360.0f){
-		angleGL = 0.0f;
-		rotateAxis2 = -rotateAxis2;
-	}
 	
 	glViewport(0, 0, 600, 600);     // set up the display window coordinates
     glMatrixMode(GL_PROJECTION);    // To operate on the Projection matrix
@@ -214,54 +194,25 @@ void GLDisplay(){
     gluPerspective(45.0f, 1.0f, 0.1f, 100.0f); // Enable perspective projection with fovy, aspect, zNear and zFar
 }
 
-/* Basic mode display function */
-void BasicDisplay(){
-	
-
-	glDisable(GL_TEXTURE_2D);                      // Enable Texture Mapping
-	glDisable(GL_LIGHTING);    // disable the lighting effect in GL mode
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); 
-		
-    BasicProjection();         // calculate the color of each pixel after rotation
-	  
-	// render a raster image into a viewport 
-	int i, j;
-	for (i = 0; i < 600; i++) {
-		for (j = 0; j < 600; j++) {
-			// the R,G,B (byte) color of pixel(i,j) 
-			glColor3d (imagBuffer[i][j][0]/255.,
-					   imagBuffer[i][j][1]/255.,
-					   imagBuffer[i][j][2]/255.);
-			
-			glBegin(GL_POINTS);
-				glVertex2i (i,j);
-			glEnd();          
-		}
-	}
-	
-	glLoadIdentity();
-	glFlush();         
-    glutSwapBuffers(); 
-	glMatrixMode(GL_PROJECTION);
-
-	gluOrtho2D(0, 600, 600, 0);  //how object is mapped to window
-}
-
 /* Function is called on a key press */
 static void key_CB(unsigned char key, int x, int y) 
 {
     switch (key)
 	{
-		// switch to basic mode
-		case 'b':
-			mode = 0;
-			break;
-		// switch to GL mode		
-		case 'g':
-			mode = 1;
+		case 's':
+			viewy = viewy + 0.1;
 			break;
 		// quit the program -- 'hard quit' 
+		case 'w':
+			viewy = viewy - 0.1;
+			break;
 		case 'q':
+			viewz = viewz + 0.1;
+			break;
+		case 'e':
+			viewz = viewz - 0.1;
+			break;
+		case 'Esc':
 			exit(0);
 			break;
 		default: 
@@ -283,7 +234,7 @@ int main(int argc, char* argv[]){
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);  //  Request double buffered true color window with Z-buffer
 	glutInitWindowSize(600, 600);                 // Set the window's initial width & height
 	glutInitWindowPosition(50, 50);               // Position the window's initial top-left corner
-	glutCreateWindow("Rotating Cube - Two modes");   // Create window
+	glutCreateWindow("Scene");   // Create window
 	ReadInFile(6);                                // Read jpeg images to pixel buffer
 	
     glutDisplayFunc(display);
@@ -297,12 +248,12 @@ int main(int argc, char* argv[]){
 
 // Read in all the jpg file to image array
 void ReadInFile(int face){
-	infile[4] = "m01.jpg";
-	infile[5] = "m02.jpg";
-	infile[1] = "m03.jpg";
-	infile[3] = "m04.jpg";
-	infile[0] = "m06.jpg";
-	infile[2] = "m05.jpg";
+	infile[4] = "1.jpg";
+	infile[5] = "2.jpg";
+	infile[1] = "3.jpg";
+	infile[3] = "4.jpg";
+	infile[0] = "6.jpg";
+	infile[2] = "5.jpg";
 	int i;
 	for(i = 0; i < face; i++)
 		gimage[i] = read_jpeg_image(infile[i]);
