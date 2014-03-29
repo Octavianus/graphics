@@ -1,14 +1,30 @@
 /* 
- * CSC533 HomeWork 3
+ * CSC533 HomeWork 2
  * Group Member: Xudong Weng, Laiyong Mu
- *
+ 
+ * Program starts with GL mode. 
+ * GL mode is brighter one, and Basic mode is darker one.
  * Extra features:
+ * 	1. implemented the cube rotation around its diagonal in both mode
+ * 	2. implemented the lighting effect in both mode.
  *
  * Operations:
+ * 	"b" switch to basic mode.
+ * 	"g" switch to GL mode.
+ * 	"q" quit the program.
  *
  * Accompanied programs [raster.cxx, raster.h, raster-jpeg.cxx] 
- * are from "Paintdemo" provided by the instructor.
+ * are from "Paintdemo" provided by the instructor
  */
+
+ /* Assumptions in Basic mode:
+ (1) Assuming the size of each plane of the cube is 600 x 600 pixels
+ (2) Assuming the center of the Cube is at (0, 0, -600)
+ (3) Assuming the view point is at (0, 0, 600)
+ (4) Assuming the display window's z axis value = 0
+ (4) The cube first rotate around Y-axis for one circle and then rotate around diagonal axis for one cycle
+ (5) simulated light source is direct light (vector (0, 0, -1)
+*/
 
 #include <stdio.h>
 #include <math.h>
@@ -24,32 +40,23 @@ extern ByteRaster *read_jpeg_image(const char *filename);
 void ReadInFile(int face);           // read jpeg file to buffer
 static char *infile[6];              // names of the pictures' file
 
-void display();                     // general display function to draw the scene
+void display();                     // general display function to draw cube
+static int mode = 1;                // 1 = GL mode; 0 = Basic mode
 void GLDisplay();                   // draw in GL mode through gl functions
 static void key_CB(unsigned char key, int x, int y);     // Called on key press 
 
-float Psize = 1.0f;            // normalized size of a picture
+float Psize = 1.0f;            // normalized cube size in GL mode
 GLuint texture[6];                  // texture ID for different planes
-GLfloat rotation_matrix[16];        // rotation matrix, may be used in rotation
+GLfloat rotation_matrix[16];        // rotation matrix in GL mode
 int refreshMills = 15;              // refresh interval in milliseconds   
-GLfloat angleGL = 0.0f;             // Rotational angle
+GLfloat angleGL = 0.0f;             // Rotational angle in GL mode
 static int rotateAxis2 = 1;         // 1 = Y axis, -1 = diagonal axis
-
-/********* Parameters of the scenm *********
- * the scene is start from (0,0) to (34,25)*
- * viewer start from (8, -3.5)
- * viewer look at the direction of (0,1,0)
- ******************************************/
+float viewy = 3.5;
+float viewz = 0.0;
+float viewx = 8.0;
 float pozx = 8.0; 
 float pozy = -3.5;
 float pozz = 0.0;
-// always look staright forward in y direction even the viewer moves.
-float viewx = pozx;
-float viewy = pozy + 1;
-float viewz = 0.0;
-
-float disofBlock = 9.0;
-float disofPic = 2.0;
 
 /* initiation */
 void initGL() {
@@ -83,7 +90,7 @@ void LoadGLTextures(int k) {
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective Calculations
 } 
 
-// display will calling GLDisplay
+/* display() Callback functions for both modes */
 void display(){
 	GLDisplay();
 }
@@ -93,65 +100,35 @@ void DrawOnePic(float x, float y)
 {
     LoadGLTextures(0);
     glBegin(GL_QUADS);
-    		// set the normal of this face for lighting
+    		// set the normal of this face
 		glNormal3d(0, -1, 0);
-		// right top
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(x + Psize, y, Psize);
-		// left top
 		glTexCoord2f(Psize, 0.0f); glVertex3f(x, y, Psize);
-		// left bottom
 		glTexCoord2f(Psize, Psize); glVertex3f(x, y, 0.0);
-		// right bottom
 		glTexCoord2f(0.0f, Psize); glVertex3f(x + Psize, y, 0.0);  
     glEnd();
 
 }
 
-void DrawOneBlockbyImposter()
-{
-	return;
-}
 // draw a block of pic based on it's position [x,y].
 void DrawOneBlock(float x, float y)
 {
-	// viewer position and where the viewer looks at
-	float dis;
-	
-	if(0 /* when calling the imposter */){
-		DrawOneBlockbyImposter();
-	}else{
-		int xpic = 4, ypic = 4; 
-		float bx = x*disofBlock;
-		float by = y*disofBlock;
-		int i;
-		for(i = 0; i < xpic; i++){
-			int j;
-			for(j = 0; j < ypic; j++){
-				float cx = i*disofPic;
-				float cy = j*disofPic;
-				DrawOnePic(bx + cx, by + cy);
-			}
+	int xpic = 4, ypic = 4; 
+	int i;
+	for(i = 0; i < xpic; i++){
+		int j;
+		for(j = 0; j < ypic; j++){
+			float cx = i + 2.0;
+			float cy = j + 2.0;
+			DrawOnePic(cx, cy);
 		}
-	}
 }
 
-// draw the scene
+// draw the cube
 void Draw(float Psize)
 {
-	// number of blocks in rows and cols:
-	int xblock = 2, yblock = 2;
-
-	// ??? this is for the angle of the posters
-	float Rotate;
-	
-	int i;
-	for(i = 0; i < xblock; i++){
-		int j;
-		for(j = 0; j < yblock; j++){
-			DrawOneBlock((float)i, (float)j);
-		}
-	}
-	
+	float xblock = 4, yblock = 3;
+	DrawOneBlock(xblock, yblock);
 /*
     // apply textures to the cube
 	// Top face of the cube
@@ -216,10 +193,10 @@ void Draw(float Psize)
 /* GL mode display function */
 void GLDisplay(){
 	
-	glEnable(GL_LIGHTING);              // Enable lighting
-	//GLfloat ambientColor[] = {0.5f, 0.5f, 0.5f, 1.0f}; 
-        //glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
-	// set up a direct light source
+		glEnable(GL_LIGHTING);              // Enable lighting
+	 //GLfloat ambientColor[] = {0.5f, 0.5f, 0.5f, 1.0f}; 
+     //glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
+	 // set up a direct light source
 	glEnable(GL_LIGHT0);
 	GLfloat lightpos[] = {0.0, 0.0, 1.0, 0.};
 	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
@@ -238,10 +215,11 @@ void GLDisplay(){
 	glFlush();                       //Complete any pending operations 
 	glutSwapBuffers();               // Swap the front and back frame buffers (double buffering)
 	
+	
 	glViewport(0, 0, 600, 600);     // set up the display window coordinates
-        glMatrixMode(GL_PROJECTION);    // To operate on the Projection matrix
+    glMatrixMode(GL_PROJECTION);    // To operate on the Projection matrix
 	glLoadIdentity();               // Reset matrix
-        gluPerspective(45.0f, 1.0f, 0.1f, 100.0f); // Enable perspective projection with fovy, aspect, zNear and zFar
+    gluPerspective(45.0f, 1.0f, 0.1f, 100.0f); // Enable perspective projection with fovy, aspect, zNear and zFar
 }
 
 /* Function is called on a key press */
@@ -249,36 +227,26 @@ static void key_CB(unsigned char key, int x, int y)
 {
     switch (key)
 	{
-		// just move for to four directions, 
-		// s = backward;
 		case 's':
 			pozy = pozy - 0.1;
-			viewy = pozy + 1.0;
 			break;
-		// w = forward;
+		// quit the program -- 'hard quit' 
 		case 'w':
 			pozy = pozy + 0.1;
-			viewy = pozy + 1.0;
 			break;
-		// a = left
-		case 'a':
-			pozx = pozx - 0.1;
-			viewx = pozx;
-			break;
-		// d = right
-		case 'd':
-			pozx = pozx + 0.1;
-			viewx = pozx;
-			break;
-		// q and e not implemented yet, Don't touch
 		case 'q':
 			viewz = viewz + 0.1;
 			break;
 		case 'e':
 			viewz = viewz - 0.1;
 			break;
-		//exit
-		case '1':
+		case 'a':
+			pozx = pozx - 0.1;
+			break;
+		case 'd':
+			pozx = pozx + 0.1;
+			break;
+		case 'Esc':
 			exit(0);
 			break;
 		default: 
@@ -303,13 +271,13 @@ int main(int argc, char* argv[]){
 	glutCreateWindow("Scene");   // Create window
 	ReadInFile(6);                                // Read jpeg images to pixel buffer
 	
-        glutDisplayFunc(display);
+    glutDisplayFunc(display);
 	glutKeyboardFunc(key_CB);
 	initGL();                       // OpenGL initialization
 	glutTimerFunc(0, timer, 0);     // First timer call immediately 
-        glutMainLoop();
+    glutMainLoop();
  
-        return 0;                       
+    return 0;                       
 }
 
 // Read in all the jpg file to image array
