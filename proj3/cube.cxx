@@ -97,7 +97,7 @@ void LoadGLTextures(int k) {
     // y size from image, border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
     glTexImage2D(GL_TEXTURE_2D, 0, 3, gimage[k]->width(), gimage[k]->height(),
             0, GL_RGB, GL_UNSIGNED_BYTE, gimage[k]->data);
-	glEnable(GL_TEXTURE_2D);                      // Enable Texture Mapping
+    glEnable(GL_TEXTURE_2D);                      // Enable Texture Mapping
     glShadeModel(GL_SMOOTH);                      // Enable Smooth Shading
     glClearColor(0.7f, 0.7f, 0.7f, 1.0f);         // Grey Background
     glClearDepth(1.0f);                           // Depth Buffer Setup
@@ -288,6 +288,7 @@ static void Mouse(int x, int y){
 	glutPostRedisplay();
 }
 
+// update the looking position 
 void look()
 {
 	rad_xz = float (g_Angle/180.0f);
@@ -295,6 +296,7 @@ void look()
 	g_look[1] = (float)(g_eye[1] +100*sin(rad_xz));
 }
 
+// mouse switcher
 void Mouse_CB(int x, int y){
 	if(mouseMode == GL_TRUE)
 		Mouse(x, y);
@@ -318,10 +320,8 @@ void GLDisplay(){
 	glMatrixMode(GL_MODELVIEW);     
     
 	glLoadIdentity();                  // Reset transformations
-	//glTranslatef(0.0f, 0.0f, -6.5f);   // Move further away from the screen
   
-	//glTranslatef(0.0f, 0.0f, 2.0f);  // Move the center of cube the origin before rotation 
-	// init 
+	// init the look direction based on the init eye position
 	rad_xz = float (g_Angle/180.0f);
 	g_look[0] = (float)(g_eye[0] +100*cos(rad_xz));
 	g_look[1] = (float)(g_eye[1] +100*sin(rad_xz));
@@ -391,7 +391,7 @@ static void SpecialKey_CB(int key, int x, int y)
 {
 	switch (key)
 	{
-		// change the angle of view
+		// change the angle of view and call look to update
 		case GLUT_KEY_LEFT:
 			g_Angle += rotateSpeed;
 			look();
@@ -400,6 +400,7 @@ static void SpecialKey_CB(int key, int x, int y)
 			g_Angle -= rotateSpeed;
 			look();
 			break;
+		// Open or close the mouse control
 		case GLUT_KEY_F1:
 			if(mouseFlag == GL_TRUE){
 				mouseMode = GL_FALSE;
