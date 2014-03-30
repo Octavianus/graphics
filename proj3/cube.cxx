@@ -40,14 +40,24 @@ static int rotateAxis2 = 1;         // 1 = Y axis, -1 = diagonal axis
  * viewer start from (8, -3.5)
  * viewer look at the direction of (0,1,0)
  ******************************************/
-float pozx = 8.0; 
-float pozy = -3.5;
-float pozz = 0.0;
-// always look staright forward in y direction even the viewer moves.
-float viewx = pozx;
-float viewy = pozy + 1;
-float viewz = 0.0;
+ // mouse location
+int xmouse= 0;
+int ymouse= 0;
+int xmouseOld= 0;
+int ymouseOld= 0;
+GLboolean mouseldown = GL_FALSE;
+// look
+// always look staright forward in y direction even the viewer moves.float g_look[0] = g_eye[0];
 
+float   g_eye[3] = {8.0,-3.5,0.5};
+float   g_look[3] = {8.0, -2.5, 0.5};
+
+float	rad_xz;	
+// start angle should be relevant to start g_eye 
+float	g_Angle = 283.0;	
+float	g_elev = 0.0;	
+ 
+// distance between block and pic
 float disofBlock = 9.0;
 float disofPic = 2.0;
 
@@ -144,6 +154,8 @@ void Draw(float Psize)
 	// ??? this is for the angle of the posters
 	float Rotate;
 	
+	DrawOnePic(5,5);
+	/*
 	int i;
 	for(i = 0; i < xblock; i++){
 		int j;
@@ -151,6 +163,7 @@ void Draw(float Psize)
 			DrawOneBlock((float)i, (float)j);
 		}
 	}
+	*/
 	
 /*
     // apply textures to the cube
@@ -212,6 +225,51 @@ void Draw(float Psize)
 */
 }
 
+// catch the mouse parameters
+void Mouse_CB(int button, int state, int x, int y)
+{
+	if(state == GLUT_DOWN)
+		mouseldown = GL_TRUE;
+	else
+		mouseldown = GL_FALSE;
+		
+	xmouseOld = xmouse;
+	ymouseOld = ymouse;
+	xmouse = x;
+	ymouse = y;
+}
+
+// track the mouse to decide the view
+static void Mouse(int x, int y){		
+	//mouse
+	g_Angle +=  -(xmouse-xmouseOld)*0.1f;            
+	g_elev  += (ymouse-ymouseOld)*0.1f;          
+
+	xmouseOld=xmouse;
+	ymouseOld=ymouse;
+	
+	// turn into angle
+	rad_xz = float (g_Angle/180.0f);	
+	
+	if (g_elev<-360)		   g_elev  =-360;
+	if (g_elev> 360)		   g_elev  = 360;
+
+	// g_eye[1] =VIEW_HEIGHT;
+
+	g_look[0] = (float)(g_eye[1] +100*cos(rad_xz));
+	g_look[1] = (float)(g_eye[0] +100*sin(rad_xz));
+	g_look[2] = g_eye[2] +g_elev;	
+
+	return;
+}
+
+void look()
+{
+	rad_xz = float (g_Angle/180.0f);
+	g_look[0] = (float)(g_eye[0] +100*cos(rad_xz));
+	g_look[1] = (float)(g_eye[1] +100*sin(rad_xz));
+}
+
 
 /* GL mode display function */
 void GLDisplay(){
@@ -228,11 +286,17 @@ void GLDisplay(){
 	glMatrixMode(GL_MODELVIEW);     
     
 	glLoadIdentity();                  // Reset transformations
-	glTranslatef(0.0f, 0.0f, -6.5f);   // Move further away from the screen
+	//glTranslatef(0.0f, 0.0f, -6.5f);   // Move further away from the screen
   
-	glTranslatef(0.0f, 0.0f, 2.0f);  // Move the center of cube the origin before rotation 
-	
-	gluLookAt(pozx, pozy, pozz, viewx, viewy, viewz, 0., 0., 1.);   // set up the eye/camera position
+	//glTranslatef(0.0f, 0.0f, 2.0f);  // Move the center of cube the origin before rotation 
+	// init 
+	rad_xz = float (g_Angle/180.0f);
+	g_look[0] = (float)(g_eye[0] +100*cos(rad_xz));
+	g_look[1] = (float)(g_eye[1] +100*sin(rad_xz));
+
+	// pin point the mouse direction and lookat direction
+	gluLookAt(g_eye[0], g_eye[1], g_eye[2], g_look[0], g_look[1], g_look[2], 0., 0., 1.);   // set up the eye/camera position
+
 	Draw(Psize);
 	glLoadIdentity();                // Reset the model-view matrix 
 	glFlush();                       //Complete any pending operations 
@@ -252,30 +316,31 @@ static void key_CB(unsigned char key, int x, int y)
 		// just move for to four directions, 
 		// s = backward;
 		case 's':
-			pozy = pozy - 0.1;
-			viewy = pozy + 1.0;
+			g_eye[1] = g_eye[1] - 0.1;
+			//g_look[1] = g_eye[1] + 1.0;
 			break;
 		// w = forward;
 		case 'w':
-			pozy = pozy + 0.1;
-			viewy = pozy + 1.0;
+			g_eye[1] = g_eye[1] + 0.1;
+			//g_look[1] = g_eye[1] + 1.0;
 			break;
 		// a = left
 		case 'a':
-			pozx = pozx - 0.1;
-			viewx = pozx;
+			g_eye[0] = g_eye[0] - 0.1;
+			//g_look[0] = g_eye[0];
 			break;
 		// d = right
 		case 'd':
-			pozx = pozx + 0.1;
-			viewx = pozx;
+			g_eye[0] = g_eye[0] + 0.1;
+			//g_look[0] = g_eye[0];
 			break;
+		// wa, wd
 		// q and e not implemented yet, Don't touch
 		case 'q':
-			viewz = viewz + 0.1;
+			g_look[2] = g_look[2] + 0.1;
 			break;
 		case 'e':
-			viewz = viewz - 0.1;
+			g_look[2] = g_look[2] - 0.1;
 			break;
 		//exit
 		case '1':
@@ -285,6 +350,33 @@ static void key_CB(unsigned char key, int x, int y)
 			break;
 	}
 	glutPostRedisplay (); // state has changed: tell GLUT to redraw
+}
+
+static void SpecialKey_CB(int key, int x, int y)
+{
+	switch (key)
+	{
+		// change the angle of view
+		case GLUT_KEY_LEFT:
+			g_Angle += 2;
+			look();
+			break;
+		case GLUT_KEY_RIGHT:
+			g_Angle -= 2;
+			look();
+			break;
+		
+		// zome in zome out
+		case GLUT_KEY_UP:
+			
+			break;
+		case GLUT_KEY_DOWN:
+			
+			break;
+		default:
+			break;
+	}
+	glutPostRedisplay ();
 }
 
 /* refresh timer */
@@ -303,8 +395,11 @@ int main(int argc, char* argv[]){
 	glutCreateWindow("Scene");   // Create window
 	ReadInFile(6);                                // Read jpeg images to pixel buffer
 	
-        glutDisplayFunc(display);
+	glutMouseFunc(Mouse_CB);
+	glutPassiveMotionFunc(Mouse);
+    glutDisplayFunc(display);
 	glutKeyboardFunc(key_CB);
+	glutSpecialFunc(SpecialKey_CB);
 	initGL();                       // OpenGL initialization
 	glutTimerFunc(0, timer, 0);     // First timer call immediately 
         glutMainLoop();
