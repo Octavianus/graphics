@@ -5,6 +5,13 @@
  * Extra features:
  *
  * Operations:
+ * 	F1: Open/Close the mouse control
+ * 	->: look at right.
+ * 	<-: look at left.
+ * 	wasd: move to four directions.
+ * 	q: look at sky.
+ * 	e: look at ground.
+ * 	1: exit
  *
  * Accompanied programs [raster.cxx, raster.h, raster-jpeg.cxx] 
  * are from "Paintdemo" provided by the instructor.
@@ -45,18 +52,24 @@ int xmouse= 0;
 int ymouse= 0;
 int xmouseOld= 0;
 int ymouseOld= 0;
-GLboolean mouseldown = GL_FALSE;
-// look
-// always look staright forward in y direction even the viewer moves.float g_look[0] = g_eye[0];
+GLboolean mouseFlag = GL_TRUE;
+GLboolean mouseMode = GL_TRUE;
 
+float mouseSpeed = 0.3f;
+float mouseControl = 6.0f;
+
+// always look staright forward in y direction even the viewer moves.float g_look[0] = g_eye[0];
 float   g_eye[3] = {8.0,-3.5,0.5};
 float   g_look[3] = {8.0, -2.5, 0.5};
-
 float	rad_xz;	
 // start angle should be relevant to start g_eye 
 float	g_Angle = 283.0;	
-float	g_elev = 0.0;	
- 
+float	g_elev = 0.0;
+
+// speed of move and rotate
+float   speed = 0.5f;
+float rotateSpeed = 2.0f;
+
 // distance between block and pic
 float disofBlock = 9.0;
 float disofPic = 2.0;
@@ -121,6 +134,7 @@ void DrawOneBlockbyImposter()
 {
 	return;
 }
+
 // draw a block of pic based on it's position [x,y].
 void DrawOneBlock(float x, float y)
 {
@@ -225,42 +239,53 @@ void Draw(float Psize)
 */
 }
 
-// catch the mouse parameters
-void Mouse_CB(int button, int state, int x, int y)
-{
-	if(state == GLUT_DOWN)
-		mouseldown = GL_TRUE;
-	else
-		mouseldown = GL_FALSE;
-		
-	xmouseOld = xmouse;
-	ymouseOld = ymouse;
-	xmouse = x;
-	ymouse = y;
-}
 
 // track the mouse to decide the view
 static void Mouse(int x, int y){		
-	//mouse
-	g_Angle +=  -(xmouse-xmouseOld)*0.1f;            
-	g_elev  += (ymouse-ymouseOld)*0.1f;          
+	
+	xmouseOld = xmouse;
+	ymouseOld = ymouse;
+	
+	xmouse = x;
+	ymouse = y;
+	
+	// use the mouseControl to make sure the mouse operation are stable
+	float tempx = xmouse - xmouseOld;
+	float tempy = ymouse - ymouseOld;
 
+	if(abs(tempx) - mouseControl > 0.0 )
+		if(tempx > 0.0)
+			tempx = mouseControl;
+		else
+			tempx = -mouseControl;
+
+	if(abs(tempy) - mouseControl > 0.0 )
+		if(tempy > 0.0)
+			tempy = mouseControl;
+		else
+			tempy = -mouseControl;
+
+	g_Angle +=  -(tempx)*mouseSpeed;            
+	g_elev  += (tempy)*mouseSpeed;          
+	
 	xmouseOld=xmouse;
 	ymouseOld=ymouse;
 	
 	// turn into angle
 	rad_xz = float (g_Angle/180.0f);	
 	
-	if (g_elev<-360)		   g_elev  =-360;
-	if (g_elev> 360)		   g_elev  = 360;
+	if (g_elev<-360)	
+     		g_elev  =-360;
+	if (g_elev> 360)		   
+		g_elev  = 360;
 
 	// g_eye[1] =VIEW_HEIGHT;
 
 	g_look[0] = (float)(g_eye[1] +100*cos(rad_xz));
 	g_look[1] = (float)(g_eye[0] +100*sin(rad_xz));
-	g_look[2] = g_eye[2] +g_elev;	
-
-	return;
+	g_look[2] = g_eye[2] - g_elev;	
+	
+	glutPostRedisplay();
 }
 
 void look()
@@ -270,6 +295,12 @@ void look()
 	g_look[1] = (float)(g_eye[1] +100*sin(rad_xz));
 }
 
+void Mouse_CB(int x, int y){
+	if(mouseMode == GL_TRUE)
+		Mouse(x, y);
+	else
+		return;
+}
 
 /* GL mode display function */
 void GLDisplay(){
@@ -283,6 +314,7 @@ void GLDisplay(){
 	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
 	
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);    // Clear screen and Z-buffer
+	
 	glMatrixMode(GL_MODELVIEW);     
     
 	glLoadIdentity();                  // Reset transformations
@@ -311,36 +343,38 @@ void GLDisplay(){
 /* Function is called on a key press */
 static void key_CB(unsigned char key, int x, int y) 
 {
+	
     switch (key)
 	{
 		// just move for to four directions, 
 		// s = backward;
 		case 's':
-			g_eye[1] = g_eye[1] - 0.1;
-			//g_look[1] = g_eye[1] + 1.0;
+			g_eye[1]-=(float)sin(rad_xz)*speed;	
+			g_eye[0]-=(float)cos(rad_xz)*speed;
 			break;
 		// w = forward;
 		case 'w':
-			g_eye[1] = g_eye[1] + 0.1;
-			//g_look[1] = g_eye[1] + 1.0;
+			g_eye[1]+=(float)sin(rad_xz)*speed;	
+			g_eye[0]+=(float)cos(rad_xz)*speed;
 			break;
 		// a = left
 		case 'a':
-			g_eye[0] = g_eye[0] - 0.1;
-			//g_look[0] = g_eye[0];
+			g_eye[0]-=(float)sin(rad_xz)*speed;	
+			g_eye[1]+=(float)cos(rad_xz)*speed;
 			break;
 		// d = right
 		case 'd':
-			g_eye[0] = g_eye[0] + 0.1;
+			g_eye[0]+=(float)sin(rad_xz)*speed;	
+			g_eye[1]-=(float)cos(rad_xz)*speed;
 			//g_look[0] = g_eye[0];
 			break;
 		// wa, wd
 		// q and e not implemented yet, Don't touch
 		case 'q':
-			g_look[2] = g_look[2] + 0.1;
+			g_look[2] = g_look[2] + rotateSpeed;
 			break;
 		case 'e':
-			g_look[2] = g_look[2] - 0.1;
+			g_look[2] = g_look[2] - rotateSpeed;
 			break;
 		//exit
 		case '1':
@@ -352,20 +386,29 @@ static void key_CB(unsigned char key, int x, int y)
 	glutPostRedisplay (); // state has changed: tell GLUT to redraw
 }
 
+// use arrow to contral the look
 static void SpecialKey_CB(int key, int x, int y)
 {
 	switch (key)
 	{
 		// change the angle of view
 		case GLUT_KEY_LEFT:
-			g_Angle += 2;
+			g_Angle += rotateSpeed;
 			look();
 			break;
 		case GLUT_KEY_RIGHT:
-			g_Angle -= 2;
+			g_Angle -= rotateSpeed;
 			look();
 			break;
-		
+		case GLUT_KEY_F1:
+			if(mouseFlag == GL_TRUE){
+				mouseMode = GL_FALSE;
+				mouseFlag = GL_FALSE;
+			}else{
+				mouseMode = GL_TRUE;
+				mouseFlag = GL_TRUE;
+			}
+			break;
 		// zome in zome out
 		case GLUT_KEY_UP:
 			
@@ -395,9 +438,9 @@ int main(int argc, char* argv[]){
 	glutCreateWindow("Scene");   // Create window
 	ReadInFile(6);                                // Read jpeg images to pixel buffer
 	
-	glutMouseFunc(Mouse_CB);
-	glutPassiveMotionFunc(Mouse);
-    glutDisplayFunc(display);
+	glutPassiveMotionFunc(Mouse_CB);
+
+        glutDisplayFunc(display);
 	glutKeyboardFunc(key_CB);
 	glutSpecialFunc(SpecialKey_CB);
 	initGL();                       // OpenGL initialization
