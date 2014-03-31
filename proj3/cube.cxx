@@ -6,13 +6,18 @@
  *
  * Operations:
  * 	F1: Open/Close the mouse control
- * 	F2: Open/Close the sub window
+ * 	F2: Open/Close the map
  * 	->: look at right.
  * 	<-: look at left.
+ * 	up: zoom in for one level.
+ * 	down: zoom out for one level.
  * 	wasd: move to four directions.
+ * 	r: move upward.
+ * 	f: move downward.
  * 	q: look at sky.
  * 	e: look at ground.
- * 	1: exit
+ * 	x: reset all parameters.
+ * 	1: exit.
  *
  * Accompanied programs [raster.cxx, raster.h, raster-jpeg.cxx] 
  * are from "Paintdemo" provided by the instructor.
@@ -377,6 +382,34 @@ void destroySubMap(){
 	glutDestroyWindow(winSub);
 }
 
+void reset()
+{
+	xmouse= 0;
+	ymouse= 0;
+	xmouseOld= 0;
+	ymouseOld= 0;
+	mouseFlag = GL_TRUE;
+	mouseMode = GL_TRUE;
+
+	// always look staright forward in y direction even the viewer moves.float g_look[0] = g_eye[0];
+	g_eye[0] = 8.0;
+	g_eye[1] =-3.5;
+	g_eye[2] = 0.5;
+	
+	g_look[0] = 8.0;
+	g_look[1] = -2.5;
+	g_look[2] = 0.5;
+	// start angle should be relevant to start g_eye 
+	g_Angle = 283.0;	
+	g_elev = 0.0;
+
+	// zoom in/out, the level of zoon is 1.
+	GLboolean zoomin = GL_TRUE;
+	GLboolean zoomout = GL_TRUE;
+	int zoom_level = 0;
+	// remember the eye location before zoom in and zoom out.
+	float zoom_eye[3] = {0,0,0};
+}
 
 /* Main window display function */
 void mainDisplay(){
@@ -458,7 +491,19 @@ static void key_CB(unsigned char key, int x, int y)
 		case 'e':
 			g_look[2] = g_look[2] - rotateSpeed;
 			break;
-		//exit
+		// move upward
+		case 'r':
+			g_eye[2]+=speed;
+			break;
+		// move downward
+		case 'f':
+			g_eye[2]-=speed;
+			break;
+		// reset all
+		case 'x':
+			reset();
+			break;
+		// exit
 		case '1':
 			exit(0);
 			break;
