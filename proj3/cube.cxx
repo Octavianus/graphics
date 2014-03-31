@@ -80,6 +80,15 @@ int winMain;
 int winSub;
 GLboolean subMap = GL_FALSE;
 
+// zoom in/out, the level of zoon is 1.
+int zoom_level_limit = 1;
+GLboolean zoomin = GL_TRUE;
+GLboolean zoomout = GL_TRUE;
+int zoom_level = 0;
+float zoomspeed = 10.0f;
+// remember the eye location before zoom in and zoom out.
+float zoom_eye[3] = {0,0,0};
+
 /* initiation */
 void initGL() {
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f); // Set background color to black and opaque
@@ -290,11 +299,25 @@ static void Mouse(int x, int y){
 }
 
 // update the looking position 
-void look()
-{
-	rad_xz = float (g_Angle/180.0f);
-	g_look[0] = (float)(g_eye[0] +100*cos(rad_xz));
-	g_look[1] = (float)(g_eye[1] +100*sin(rad_xz));
+void zoomIn(){
+	zoom_eye[0] = g_eye[0]; 
+	zoom_eye[1] = g_eye[1];
+	g_eye[1]+=(float)sin(rad_xz)*zoomspeed;	
+	g_eye[0]+=(float)cos(rad_xz)*zoomspeed;
+
+}
+
+void zoomOut(){
+	zoom_eye[0] = g_eye[0]; 
+	zoom_eye[1] = g_eye[1];
+	g_eye[1]-=(float)sin(rad_xz)*zoomspeed;	
+	g_eye[0]-=(float)cos(rad_xz)*zoomspeed;
+
+}
+
+void zoomBack(){
+	g_eye[0] = zoom_eye[0];
+	g_eye[1] = zoom_eye[1];
 }
 
 // mouse switcher
@@ -323,22 +346,16 @@ void subDisplay(){
 	    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f, 1.0f);  
 	glEnd();
 
-	 /* render a raster image into a viewport
+	/* ??? draw a pixel of the the point in the map
         int i, j;
 	for (i = 0; i < gimage[6]->height (); i++)
 	{
 		for (j = 0; j < gimage[6]->width (); j++)
 		{
-			/* the R,G,B (byte) color of pixel(j,i) 
-			glColor3d (gimage[6]->pixel(i,j)[0]/255.,
-					gimage[6]->pixel(i,j)[1]/255.,
-					gimage[6]->pixel(i,j)[2]/255.);
-			glBegin(GL_POINTS);
-			glVertex2i (i,j);
-			glEnd();
 		}
 	}
 	*/
+
 	glViewport(0, 0, 170, 125);     // set up the display window coordinates
 	                                                                                         /* how object is mapped to window */
 	glMatrixMode(GL_PROJECTION);    // To operate on the Projection matrix
@@ -408,11 +425,19 @@ static void key_CB(unsigned char key, int x, int y)
 		case 's':
 			g_eye[1]-=(float)sin(rad_xz)*speed;	
 			g_eye[0]-=(float)cos(rad_xz)*speed;
+			if(zoomout == GL_TRUE){
+				zoom_eye[1]-=(float)sin(rad_xz)*speed;	
+				zoom_eye[0]-=(float)cos(rad_xz)*speed;
+			}
 			break;
 		// w = forward;
 		case 'w':
 			g_eye[1]+=(float)sin(rad_xz)*speed;	
 			g_eye[0]+=(float)cos(rad_xz)*speed;
+			if(zoomin == GL_TRUE){
+				zoom_eye[1]+=(float)sin(rad_xz)*speed;	
+				zoom_eye[0]+=(float)cos(rad_xz)*speed;
+			}
 			break;
 		// a = left
 		case 'a':
@@ -451,11 +476,9 @@ static void SpecialKey_CB(int key, int x, int y)
 		// change the angle of view and call look to update
 		case GLUT_KEY_LEFT:
 			g_Angle += rotateSpeed;
-			look();
 			break;
 		case GLUT_KEY_RIGHT:
 			g_Angle -= rotateSpeed;
-			look();
 			break;
 		// Open or close the mouse control
 		case GLUT_KEY_F1:
@@ -478,12 +501,36 @@ static void SpecialKey_CB(int key, int x, int y)
 			}
 			break;
 		case GLUT_KEY_UP:
-			
+			zoom_level++;	
+			if(zoom_level == 0){
+				zoomBack();
+				zoomin = GL_TRUE;
+				zoomout = GL_TRUE;
+				break;
+			}
+			else if(zoom_level >= 1){
+				if(zoomin == GL_TRUE)
+					zoomIn();
+				zoomin = GL_FALSE;
+				zoom_level = 1;
+			}
 			break;
 		case GLUT_KEY_DOWN:
-			
+			zoom_level--;	
+			if(zoom_level == 0){
+				zoomBack();
+				zoomin = GL_TRUE;
+				zoomout = GL_TRUE;
+				break;
+			}
+			else if(zoom_level <= -1){
+				if(zoomout == GL_TRUE)
+					zoomOut();
+				zoomout = GL_FALSE;
+				zoom_level = -1;
+			}
 			break;
-			default:
+		default:
 			break;
 	}
 	glutPostRedisplay ();
