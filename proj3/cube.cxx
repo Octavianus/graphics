@@ -6,6 +6,7 @@
  *
  * Operations:
  * 	F1: Open/Close the mouse control
+ * 	F2: Open/Close the sub window
  * 	->: look at right.
  * 	<-: look at left.
  * 	wasd: move to four directions.
@@ -25,14 +26,15 @@
 #include "raster.h"
 
 /* Function Prototypes and Global Variables */
-static ByteRaster *gimage[6];        // pixel buffer for 6 jpeg picture
+static ByteRaster *gimage[7];        // pixel buffer for 6 jpeg picture
 
 extern ByteRaster *read_jpeg_image(const char *filename);
 void ReadInFile(int face);           // read jpeg file to buffer
-static char *infile[6];              // names of the pictures' file
+static char *infile[7];              // names of the pictures' file
 
-void display();                     // general display function to draw the scene
-void GLDisplay();                   // draw in GL mode through gl functions
+void mainDisplay();                  // draw in main window through gl functions
+void subDisplay();
+
 static void key_CB(unsigned char key, int x, int y);     // Called on key press 
 
 float Psize = 1.0f;            // normalized size of a picture
@@ -54,7 +56,6 @@ int xmouseOld= 0;
 int ymouseOld= 0;
 GLboolean mouseFlag = GL_TRUE;
 GLboolean mouseMode = GL_TRUE;
-
 float mouseSpeed = 0.3f;
 float mouseControl = 6.0f;
 
@@ -73,6 +74,11 @@ float rotateSpeed = 2.0f;
 // distance between block and pic
 float disofBlock = 9.0;
 float disofPic = 2.0;
+
+// sub map
+int winMain;
+int winSub;
+GLboolean subMap = GL_FALSE;
 
 /* initiation */
 void initGL() {
@@ -105,11 +111,6 @@ void LoadGLTextures(int k) {
     glDepthFunc(GL_LEQUAL);                       // The Type Of Depth Testing To Do
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);          // Really Nice Perspective Calculations
 } 
-
-// display will calling GLDisplay
-void display(){
-	GLDisplay();
-}
 
 // draw a pic in a block.
 void DrawOnePic(float x, float y)
@@ -304,12 +305,68 @@ void Mouse_CB(int x, int y){
 		return;
 }
 
-/* GL mode display function */
-void GLDisplay(){
+// sub map display 
+void subDisplay(){
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);    // Clear screen and Z-buffer
+
+	glMatrixMode(GL_MODELVIEW);     
+    
+	glLoadIdentity();                  // Reset transformations
+	LoadGLTextures(6);
+	glBegin(GL_QUADS);
+	    glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
+	    // left top
+	    glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, -1.0f);
+	    // left bottom
+	    glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);
+	    // right bottom
+	    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f, 1.0f);  
+	glEnd();
+
+	 /* render a raster image into a viewport
+        int i, j;
+	for (i = 0; i < gimage[6]->height (); i++)
+	{
+		for (j = 0; j < gimage[6]->width (); j++)
+		{
+			/* the R,G,B (byte) color of pixel(j,i) 
+			glColor3d (gimage[6]->pixel(i,j)[0]/255.,
+					gimage[6]->pixel(i,j)[1]/255.,
+					gimage[6]->pixel(i,j)[2]/255.);
+			glBegin(GL_POINTS);
+			glVertex2i (i,j);
+			glEnd();
+		}
+	}
+	*/
+	glViewport(0, 0, 170, 125);     // set up the display window coordinates
+	                                                                                         /* how object is mapped to window */
+	glMatrixMode(GL_PROJECTION);    // To operate on the Projection matrix
+	glLoadIdentity();     
+	glFlush();
+	glutSwapBuffers();
+
+}
+
+// open the sub map
+void openSubMap(){
+	winSub = glutCreateSubWindow(winMain,1024-190,20,170,125);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	glutDisplayFunc(subDisplay);
+}
+
+// destroy sub map
+void destroySubMap(){
+	glutDestroyWindow(winSub);
+}
+
+
+/* Main window display function */
+void mainDisplay(){
 	
 	glEnable(GL_LIGHTING);              // Enable lighting
-	//GLfloat ambientColor[] = {0.5f, 0.5f, 0.5f, 1.0f}; 
-        //glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
+	GLfloat ambientColor[] = {0.5f, 0.5f, 0.5f, 1.0f}; 
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
 	// set up a direct light source
 	glEnable(GL_LIGHT0);
 	GLfloat lightpos[] = {0.0, 0.0, 1.0, 0.};
@@ -334,7 +391,7 @@ void GLDisplay(){
 	glFlush();                       //Complete any pending operations 
 	glutSwapBuffers();               // Swap the front and back frame buffers (double buffering)
 	
-	glViewport(0, 0, 600, 600);     // set up the display window coordinates
+	glViewport(0, 0, 1024, 768);     // set up the display window coordinates
         glMatrixMode(GL_PROJECTION);    // To operate on the Projection matrix
 	glLoadIdentity();               // Reset matrix
         gluPerspective(45.0f, 1.0f, 0.1f, 100.0f); // Enable perspective projection with fovy, aspect, zNear and zFar
@@ -411,13 +468,22 @@ static void SpecialKey_CB(int key, int x, int y)
 			}
 			break;
 		// zome in zome out
+		case GLUT_KEY_F2:
+			if(subMap == GL_TRUE){
+				destroySubMap();
+				subMap = GL_FALSE;
+			}else{
+				openSubMap();
+				subMap = GL_TRUE;
+			}
+			break;
 		case GLUT_KEY_UP:
 			
 			break;
 		case GLUT_KEY_DOWN:
 			
 			break;
-		default:
+			default:
 			break;
 	}
 	glutPostRedisplay ();
@@ -431,22 +497,22 @@ void timer(int value) {
 
 /* main() function */
 int main(int argc, char* argv[]){
-   
+   	
 	glutInit(&argc,argv);                         //  Initialize GLUT and process user parameters
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);  //  Request double buffered true color window with Z-buffer
-	glutInitWindowSize(600, 600);                 // Set the window's initial width & height
-	glutInitWindowPosition(50, 50);               // Position the window's initial top-left corner
-	glutCreateWindow("Scene");   // Create window
-	ReadInFile(6);                                // Read jpeg images to pixel buffer
+	glutInitWindowSize(1024, 768);                 // Set the window's initial width & height
+	glutInitWindowPosition(100, 100);               // Position the window's initial top-left corner
+	winMain = glutCreateWindow("3D Map");   // Create window
+
+	ReadInFile(7); // Read jpeg images to pixel buffer
 	
 	glutPassiveMotionFunc(Mouse_CB);
-
-        glutDisplayFunc(display);
+        glutDisplayFunc(mainDisplay);
 	glutKeyboardFunc(key_CB);
 	glutSpecialFunc(SpecialKey_CB);
 	initGL();                       // OpenGL initialization
 	glutTimerFunc(0, timer, 0);     // First timer call immediately 
-        glutMainLoop();
+	glutMainLoop();
  
         return 0;                       
 }
@@ -459,6 +525,7 @@ void ReadInFile(int face){
 	infile[3] = "4.jpg";
 	infile[0] = "6.jpg";
 	infile[2] = "5.jpg";
+	infile[6] = "map.jpg";
 	int i;
 	for(i = 0; i < face; i++)
 		gimage[i] = read_jpeg_image(infile[i]);
